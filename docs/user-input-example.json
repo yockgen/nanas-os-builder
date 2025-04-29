@@ -15,5 +15,5 @@
     "immutability": ["false"],
     "output": ["iso"],
     "OSType" : ["EdgeMicrovisor"],
-    "kernel": ["kernel"]
+    "kernel": ["6.12"]    
 }
