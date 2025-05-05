@@ -1,8 +1,8 @@
 {
-    "OSType": "UnknownOS",
-    "OSVersion": "1.0",
+    "distro": "UnknownOS",
+    "version": "1.0",
     "packages": [],
-    "immutability": false,
+    "immutable": false,
     "output": ["exe"],
     "kernel": {}
   }
