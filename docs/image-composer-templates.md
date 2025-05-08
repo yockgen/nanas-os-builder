@@ -40,7 +40,6 @@ build:
     - base
     - packages
     - configuration
-    - platform
     - finalize
 
 customizations:
@@ -279,3 +278,4 @@ Templates in Image-Composer provide a straightforward way to standardize image c
 3. **Simplify Onboarding**: Make it easier for new team members to create proper images
 
 The template system is designed to be simple yet effective, focusing on practical reuse rather than complex inheritance or versioning schemes.
+

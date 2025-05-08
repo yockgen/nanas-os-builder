@@ -359,3 +359,4 @@ image-composer --log-level debug build my-image-spec.yml
 # Save logs to a file
 image-composer --log-level debug build my-image-spec.yml 2>&1 | tee build-log.txt
 ```
+
