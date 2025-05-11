@@ -78,7 +78,33 @@ flowchart TD
 ```
 ## Detailed Design 
 
-The following diagram depicts the list of ![SW entities and their relationships ](assets/components.drawio.svg) in composing user specified OS image.
+The following diagram depicts the list of SW entities and their relationships in composing user specified OS image.
+
+```mermaid
+
+classDiagram
+    note "SW Entities and their relationships"
+    CLI -- OS Image Config File Parser
+    CLI -- Config Store 
+    CLI -- Image Store
+    CLI -- OS Image Provider If
+    OS Image Provider If -- Debian Package Handler
+    OS Image Provider If -- RPM Package Handler
+    OS Image Provider If -- Boot Image Composer
+    OS Image Provider If --|> Azure Linux Provider
+    OS Image Provider If --|> Wind River Elxr Provider
+    OS Image Provider If --|> EMT Provider
+    Debian Package Handler -- Debian Package Cache
+    RPM Package Handler -- RPM Package Cache
+    Boot Image Composer --|> Systemd Boot Composer
+    OS Image Provider If -- Image Formatter
+    Image Formatter --|> ISO Image Generator
+    Image Formatter --|> VHD Image Generator
+    Image Formatter --|> Raw Image Generator
+    Azure Linux Provider o-- Chroot Environment
+    Wind River Elxr Provider o-- Chroot Environment
+    EMT Provider o-- Chroot Environment
+```
 
 The following table captures the SW entities and their functions.
 
