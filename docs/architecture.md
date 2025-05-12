@@ -76,3 +76,62 @@ flowchart TD
     O --- E
     O --- F
 ```
+## Detailed Design 
+
+The following diagram depicts the list of SW entities and their relationships in composing user specified OS image.
+
+```mermaid
+
+classDiagram
+    note "SW Entities and their relationships"
+    CLI -- OS Image Config File Parser
+    CLI -- Config Store 
+    CLI -- Image Store
+    CLI -- OS Image Provider If
+    OS Image Provider If -- Debian Package Handler
+    OS Image Provider If -- RPM Package Handler
+    OS Image Provider If -- Boot Image Composer
+    OS Image Provider If --|> Azure Linux Provider
+    OS Image Provider If --|> Wind River Elxr Provider
+    OS Image Provider If --|> EMT Provider
+    Debian Package Handler -- Debian Package Cache
+    RPM Package Handler -- RPM Package Cache
+    Boot Image Composer --|> Systemd Boot Composer
+    OS Image Provider If -- Image Formatter
+    Image Formatter --|> ISO Image Generator
+    Image Formatter --|> VHD Image Generator
+    Image Formatter --|> Raw Image Generator
+    Azure Linux Provider o-- Chroot Environment
+    Wind River Elxr Provider o-- Chroot Environment
+    EMT Provider o-- Chroot Environment
+```
+
+The following table captures the SW entities and description of their functions.
+
+| SW Component | Description |
+| -------- | ------- |
+| CLI   | A commandline interface module that provides an interface enabling users to create desired OS images |
+| OS Image Provider Interface | As described above |
+| Debian Package Handler |  for downloading, caching and serving the packages as needed to the OS Image providers  |
+| Debian Package Cache |  for storing and retrieving the downloaded debian packages in an efficient way  |
+| RPM Package Handler |  for downloading, caching and serving the packages as needed to the OS Image providers  |
+| RPM Package Cache |  for storing and retrieving the downloaded rpm packages in an efficient way  |
+| Azure Linux Provider | for supporting creation of Azure Linux OS Images  |
+| EMT Provider | for supporting creation of EMT OS Images  |
+| Windriver LxR Provider |  for supporting creation of WindRiver LxR Images  |
+| Chroot Environment |  for creation of chroot environment upon request, which would eventually be used to build the OS image|
+| Boot Image Composer |  for creation of Boot Image upon request by the OS provider to bundle boot images with kernel images|
+| Systemd-Boot Composer | for creation of Systemd-Boot Image upon request by the Boot Image Composer|
+| ISO Maker | Converts an image in chroot environment into an ISO Image|
+| Raw Maker | Converts an image in chroot environment into raw format|
+| VHD Maker | Converts an image in chroot environment into VHD format|
+| Image Store | Stores a limited set of images using LRU principle|
+| Config Store | Stores Image Configuration Files for runtime reference and later use|
+
+## Architecture Opens
+|S.No | Architecture Open | Status | Comments|
+| ----|------------------ | ------- |--------|
+| 1.| Development Ownership of each component  | Open |  |
+| 2.| JSON vs YML file for capturing the OS Image Configuration  | Open |  |
+| 3.| User Facing CLI Commands and user interface  | Open |  |
+
