@@ -38,9 +38,20 @@ fetch-golang:
 build:
     FROM +golang-base
     ARG version='0.0.0-unknown'
+    # Get build date in UTC
+    RUN date -u '+%Y-%m-%d' > /tmp/build_date
+    # Get git commit SHA if in a git repo, otherwise use "unknown"
+    RUN if [ -d .git ]; then \
+            git rev-parse --short HEAD > /tmp/commit_sha; \
+        else \
+            echo "unknown" > /tmp/commit_sha; \
+        fi
     RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
         go build -trimpath -o build/image-composer \
-            -ldflags "-s -w -extldflags '-static' -X main.Version=$version" \
+            -ldflags "-s -w -extldflags '-static' \
+                     -X main.Version=$version \
+                     -X main.BuildDate=$(cat /tmp/build_date) \
+                     -X main.CommitSHA=$(cat /tmp/commit_sha)" \
             ./cmd/image-composer
     SAVE ARTIFACT build/image-composer AS LOCAL ./build/image-composer
 
