@@ -15,31 +15,69 @@ and WindRiver Linux.
 
 ### Building
 
-Build the image-composer
+Build the image-composer using Go directly:
 
 ```bash
 go build ./cmd/image-composer
 ```
 
-Run `go test` to validate a given JSON file against the schema
+Or use Earthly for a reproducible build:
 
 ```bash
-go test ./internal/validate
-```
-
-Run the image composer with the AzureLinux provider. The testdata/valid.json file
-is composed to use AzureLinux v3. The provider name is created by `name`+`version`,
-so the provider name is `azurelinux3`.
-
-```bash
-go run ./cmd/image-composer testdata/valid.json
-```
-
-With Earthfile, simply run:
-
-```bash
+# Default build
 earthly +build
+
+# Build with specific version
+earthly +build --version=1.0.0
+
 ```
+
+The Earthly build automatically includes:
+- Version number (from --version parameter)
+- Build date (current UTC date)
+- Git commit SHA (current repository commit)
+
+### Usage
+
+The Image Composer Tool uses a command-line interface with various commands:
+
+```bash
+# Show help
+./image-composer --help
+
+# Build command with spec file as positional argument
+./image-composer build testdata/valid.json
+
+# Validate a spec file against the schema
+./image-composer validate testdata/valid.json
+
+# Display version information
+./image-composer version
+```
+
+#### Build Command Options
+
+The `build` command now takes a spec file as a positional argument and supports the following flags:
+
+- `--workers, -w`: Number of concurrent download workers (default: 8)
+- `--cache-dir, -d`: Package cache directory (default: "./downloads")
+- `--verbose, -v`: Enable verbose output
+
+Example:
+
+```bash
+./image-composer build --workers 12 --cache-dir ./package-cache testdata/valid.json
+```
+
+#### Validate Command
+
+The `validate` command allows you to check if a JSON spec file conforms to the schema without actually building an image:
+
+```bash
+./image-composer validate testdata/valid.json
+```
+
+This is useful for verifying configurations before starting the potentially time-consuming build process.
 
 ### User Input JSON
 
@@ -136,6 +174,8 @@ There are two sample JSON files, one [valid](/testdata/valid.json) and one with
 [invalid](testdata/invalid.json) content.
 
 ## Getting Help
+
+Run `./image-composer --help` to see all available commands and options.
 
 ## Contributing
 

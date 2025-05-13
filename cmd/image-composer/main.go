@@ -8,19 +8,28 @@ import (
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/config"
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/pkgfetcher"
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider"
+	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/validate"
 	_ "github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider/azurelinux3" // register provider
 	_ "github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider/elxr12"      // register provider
 	_ "github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/provider/emt3_0"      // register provider
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"io"
 )
 
-// temporary placeholder for configuration
-// This should be replaced with a proper configuration struct
-const (
-	workers = 8
-	destDir = "./downloads"
+// Version information
+var (
+	Version   = "0.1.0"
+	BuildDate = "unknown"
+	CommitSHA = "unknown"
+)
+
+// Config options with defaults
+var (
+	workers  int    = 8
+	cacheDir string = "./downloads"
+	verbose  bool
 )
 
 // nopSyncer wraps an io.Writer but its Sync() does nothing.
@@ -52,85 +61,183 @@ func setupLogger() (*zap.Logger, error) {
 
     return zap.New(core, opts...), nil
 }
-func main() {
 
-	logger, err := setupLogger()
-	if err != nil {
-		panic(err)
+// executeBuild handles the build command execution logic
+func executeBuild(cmd *cobra.Command, args []string) error {
+	logger := zap.L()
+	sugar := logger.Sugar()
+
+	// Check if spec file is provided as first positional argument
+	if len(args) < 1 {
+		return fmt.Errorf("no spec file provided, usage: image-composer build [flags] SPEC_FILE")
 	}
-	defer logger.Sync()            // never errors
-	zap.ReplaceGlobals(logger)
-	sugar := zap.S()
+	specFile := args[0]
 
-	// check for input JSON
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <input.json>\n", os.Args[0])
-		os.Exit(1)
-	}
-	configPath := os.Args[1]
-
-	bc, err := config.Load(configPath)
+	// Load and validate the configuration
+	bc, err := config.Load(specFile)
 	if err != nil {
-		sugar.Fatalf("loading config: %v", err)
+		return fmt.Errorf("loading spec file: %v", err)
 	}
 
 	providerName := bc.Distro + bc.Version
 
-	// get provider by name
+	// Get provider by name
 	p, ok := provider.Get(providerName)
 	if !ok {
-		sugar.Fatalf("provider not found, %s", providerName)
+		return fmt.Errorf("provider not found: %s", providerName)
 	}
 
-	// initialize provider
+	// Initialize provider
 	if err := p.Init(bc); err != nil {
-		sugar.Fatalf("provider init: %v", err)
+		return fmt.Errorf("provider init: %v", err)
 	}
 
-	// fetch the entire package list
+	// Fetch the entire package list
 	all, err := p.Packages()
 	if err != nil {
-		sugar.Fatalf("getting packages: %v", err)
+		return fmt.Errorf("getting packages: %v", err)
 	}
 
-	// match the packages in the build spec against all the packages
+	// Match the packages in the build spec against all the packages
 	req, err := p.MatchRequested(bc.Packages, all)
 	if err != nil {
-		sugar.Fatalf("matching packages: %v", err)
+		return fmt.Errorf("matching packages: %v", err)
 	}
-	sugar.Infof("matched al total of %d packages", len(req))
-	for _, pkg := range req {
-		sugar.Infof("-> %s", pkg.Name)
+	sugar.Infof("matched a total of %d packages", len(req))
+	if verbose {
+		for _, pkg := range req {
+			sugar.Infof("-> %s", pkg.Name)
+		}
 	}
 	
-	// resolve the dependencies of the requested packages
+	// Resolve the dependencies of the requested packages
 	needed, err := p.Resolve(req, all)
 	if err != nil {
-		sugar.Fatalf("resolving packages: %v", err)
+		return fmt.Errorf("resolving packages: %v", err)
 	}
 	sugar.Infof("resolved %d packages", len(needed))
 
-
-	// extract URLs
+	// Extract URLs
 	urls := make([]string, len(needed))
 	for i, pkg := range needed {
 		urls[i] = pkg.URL
 	}
 
-	// populate the cache download
-	absDest, err := filepath.Abs(destDir)
+	// Populate the cache download
+	absCacheDir, err := filepath.Abs(cacheDir)
 	if err != nil {
-		sugar.Fatalf("invalid dest: %v", err)
+		return fmt.Errorf("invalid cache directory: %v", err)
 	}
-	sugar.Infof("downloading %d packages to %s", len(urls), absDest)
-	if err := pkgfetcher.FetchPackages(urls, absDest, workers); err != nil {
-		sugar.Fatalf("fetch failed: %v", err)
+	sugar.Infof("downloading %d packages to %s", len(urls), absCacheDir)
+	if err := pkgfetcher.FetchPackages(urls, absCacheDir, workers); err != nil {
+		return fmt.Errorf("fetch failed: %v", err)
 	}
 	sugar.Info("all downloads complete")
 
-	// verify downloaded packages
-	if err := p.Validate(destDir); err != nil {
-		sugar.Fatalf("verification failed: %v", err)
+	// Verify downloaded packages
+	if err := p.Validate(cacheDir); err != nil {
+		return fmt.Errorf("verification failed: %v", err)
 	}
 
+	sugar.Info("build completed successfully")
+	return nil
+}
+
+// executeValidate handles the validate command execution logic
+func executeValidate(cmd *cobra.Command, args []string) error {
+	logger := zap.L()
+	sugar := logger.Sugar()
+
+	// Check if spec file is provided as first positional argument
+	if len(args) < 1 {
+		return fmt.Errorf("no spec file provided, usage: image-composer validate SPEC_FILE")
+	}
+	specFile := args[0]
+
+	sugar.Infof("Validating spec file: %s", specFile)
+	
+	// Read the file
+	data, err := os.ReadFile(specFile)
+	if err != nil {
+		return fmt.Errorf("reading spec file: %v", err)
+	}
+	
+	// Validate the JSON against schema
+	if err := validate.ValidateJSON(data); err != nil {
+		return fmt.Errorf("validation failed: %v", err)
+	}
+	
+	sugar.Info("Spec file is valid")
+	return nil
+}
+
+// executeVersion handles the version command logic
+func executeVersion(cmd *cobra.Command, args []string) {
+	fmt.Printf("Image Composer Tool v%s\n", Version)
+	fmt.Printf("Build Date: %s\n", BuildDate)
+	fmt.Printf("Commit: %s\n", CommitSHA)
+}
+
+func main() {
+	// Initialize logger
+	logger, err := setupLogger()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to set up logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
+	// Root command
+	rootCmd := &cobra.Command{
+		Use:   "image-composer",
+		Short: "Image Composer Tool (ICT) for building Linux distributions",
+		Long: `Image Composer Tool (ICT) is a toolchain that enables building immutable
+Linux distributions using a simple toolchain from pre-built packages emanating
+from different Operating System Vendors (OSVs).`,
+	}
+
+	// Build command
+	buildCmd := &cobra.Command{
+		Use:   "build [flags] SPEC_FILE",
+		Short: "Build a Linux distribution image",
+		Long: `Build a Linux distribution image based on the specified spec file.
+The spec file should be in JSON format according to the schema.`,
+		Args: cobra.ExactArgs(1),
+		RunE: executeBuild,
+	}
+
+	// Validate command
+	validateCmd := &cobra.Command{
+		Use:   "validate SPEC_FILE",
+		Short: "Validate a spec file against the schema",
+		Long:  `Validate that the given JSON spec file conforms to the schema.`,
+		Args:  cobra.ExactArgs(1),
+		RunE:  executeValidate,
+	}
+
+	// Version command
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Display version information",
+		Run:   executeVersion,
+	}
+
+	// Add flags to build command
+	buildCmd.Flags().IntVarP(&workers, "workers", "w", workers, "Number of concurrent download workers")
+	buildCmd.Flags().StringVarP(&cacheDir, "cache-dir", "d", cacheDir, "Package cache directory")
+	buildCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
+
+	// Add commands to root command
+	rootCmd.AddCommand(buildCmd)
+	rootCmd.AddCommand(validateCmd)
+	rootCmd.AddCommand(versionCmd)
+
+	// Add global flags
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
+
+	// Execute the root command
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
