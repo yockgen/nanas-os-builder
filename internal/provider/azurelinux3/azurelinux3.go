@@ -154,7 +154,8 @@ func (p *AzureLinux3) Validate(destDir string) error {
 	if err != nil {
 		return fmt.Errorf("read GPG key body: %w", err)
 	}
-	logger.Infof("fetched GPG key \n%s", keyBytes)
+	logger.Infof("fetched GPG key (%d)", len(keyBytes))
+	logger.Debugf("GPG key: %s\n", keyBytes)
 
 	// store in a temp file
 	tmp, err := os.CreateTemp("", "azurelinux-gpg-*.asc")
@@ -326,32 +327,3 @@ func fetchPrimaryURL(repomdURL string) (string, error) {
 	return "", fmt.Errorf("primary location not found in %s", repomdURL)
 }
 
-// crawlDirectory fetches a directory listing and appends RPM entries
-// Commenting to avoid lint errors as its not used
-/*
-func crawlDirectory(url string, pkgs *[]provider.PackageInfo) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	s := bufio.NewScanner(resp.Body)
-	for s.Scan() {
-		line := s.Text()
-		// simplistic HTML href parse
-		if idx := strings.Index(line, "href=\""); idx != -1 {
-			part := line[idx+6:]
-			if end := strings.Index(part, "\""); end != -1 {
-				fname := part[:end]
-				if strings.HasSuffix(fname, ".rpm") {
-					full := url + fname
-					*pkgs = append(*pkgs, provider.PackageInfo{Name: strings.TrimSuffix(fname, ".rpm"), URL: full, Checksum: ""})
-				}
-			}
-		}
-	}
-
-	return s.Err()
-}
-*/
