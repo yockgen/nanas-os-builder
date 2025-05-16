@@ -78,7 +78,7 @@ func (p *eLxr12) Init(spec *config.BuildSpec) error {
 func (p *eLxr12) Packages() ([]provider.PackageInfo, error) {
 
 	logger := zap.L().Sugar()
-	logger.Infof("Packages() called - Placeholder: This function will be implemented by the respective owner.")
+	logger.Infof("Packages() started")
 
 	debutils.ParsePrimary(p.repoURL, p.gzHref)
 
