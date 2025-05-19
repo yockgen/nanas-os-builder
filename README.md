@@ -73,7 +73,8 @@ Flags:
 - `--workers, -w`: Number of concurrent download workers (default: 8)
 - `--cache-dir, -d`: Package cache directory (default: "./downloads")
 - `--verbose, -v`: Enable verbose output
-
+- `--dotfile, -f': Generate dependency graph as a dot file
+ 
 Example:
 
 ```bash
