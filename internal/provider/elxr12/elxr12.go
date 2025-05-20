@@ -106,34 +106,6 @@ func (p *eLxr12) Packages() ([]provider.PackageInfo, error) {
 func (p *eLxr12) Validate(destDir string) error {
 	logger := zap.L().Sugar()
 
-	// read the GPG key from the repo config
-	// resp, err := http.Get(p.repoCfg.GPGKey)
-	// if err != nil {
-	// 	return fmt.Errorf("fetch GPG key %s: %w", p.repoCfg.GPGKey, err)
-	// }
-	// defer resp.Body.Close()
-
-	// keyBytes, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return fmt.Errorf("read GPG key body: %w", err)
-	// }
-	// logger.Infof("fetched GPG key (%d)", len(keyBytes))
-	// logger.Debugf("GPG key: %s\n", keyBytes)
-
-	// // store in a temp file
-	// tmp, err := os.CreateTemp("", "azurelinux-gpg-*.asc")
-	// if err != nil {
-	// 	return fmt.Errorf("create temp key file: %w", err)
-	// }
-	// defer func() {
-	// 	tmp.Close()
-	// 	os.Remove(tmp.Name())
-	// }()
-
-	// if _, err := tmp.Write(keyBytes); err != nil {
-	// 	return fmt.Errorf("write key to temp file: %w", err)
-	// }
-
 	// get all DEBs in the destDir
 	debPattern := filepath.Join(destDir, "*.deb")
 	debPaths, err := filepath.Glob(debPattern)
@@ -153,7 +125,7 @@ func (p *eLxr12) Validate(destDir string) error {
 
 	start := time.Now()
 	results := debutils.VerifyAll(debPaths, checksumMap, p.repoCfg.GPGKey, 4)
-	logger.Infof("RPM verification took %s", time.Since(start))
+	logger.Infof("Debian verification took %s", time.Since(start))
 
 	// Check results
 	for _, r := range results {
@@ -171,13 +143,15 @@ func (p *eLxr12) Resolve(req []provider.PackageInfo, all []provider.PackageInfo)
 	// get sugar logger from zap
 	logger := zap.L().Sugar()
 
-	logger.Infof("resolving dependencies for %d RPMs", len(req))
-	// Resolve all the required dependencies for the initial seed of RPMs
+	logger.Infof("resolving dependencies for %d DEBIANs", len(req))
+	// Resolve all the required dependencies for the initial seed of Debian packages
 	needed, err := debutils.ResolvePackageInfos(req, all)
 	if err != nil {
 		logger.Errorf("resolving dependencies failed: %v", err)
 		return nil, err
 	}
+
+	logger.Infof("requested %d packages, resolved to %d packages", len(req), len(needed))
 	logger.Infof("need a total of %d RPMs (including dependencies)", len(needed))
 
 	for _, pkg := range needed {
@@ -207,7 +181,7 @@ func (p *eLxr12) MatchRequested(requests []string, all []provider.PackageInfo) (
 		for _, pi := range all {
 
 			// 1) exact name match
-			if pi.Name == want || pi.Name == want+".rpm" {
+			if pi.Name == want || pi.Name == want+".deb" {
 				candidates = append(candidates, pi)
 				break
 			}
@@ -223,12 +197,11 @@ func (p *eLxr12) MatchRequested(requests []string, all []provider.PackageInfo) (
 		}
 
 		if len(candidates) == 0 {
-			// return nil, fmt.Errorf("requested package %q not found in repo", want)
 			logger.Infof("requested package %q not found in repo", want)
 			continue
 		}
 		// If we got an exact match in step (1), it's the only candidate
-		if len(candidates) == 1 && (candidates[0].Name == want || candidates[0].Name == want+".rpm") {
+		if len(candidates) == 1 && (candidates[0].Name == want || candidates[0].Name == want+".deb") {
 			out = append(out, candidates[0])
 			continue
 		}

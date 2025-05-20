@@ -78,10 +78,6 @@ func ResolvePackageInfos(requested []provider.PackageInfo, all []provider.Packag
 		return result[i].Name < result[j].Name
 	})
 
-	orgCnt := len(requested)
-	finalCnt := len(result)
-	fmt.Printf("requested %d packages, resolved to %d packages\n", orgCnt, finalCnt)
-
 	return result, nil
 }
 
@@ -89,8 +85,8 @@ func ResolvePackageInfos(requested []provider.PackageInfo, all []provider.Packag
 func ParsePrimary(baseURL, gzHref string) ([]provider.PackageInfo, error) {
 
 	// Download the debian repo .gz file with all components meta data
-	PkgMetaFile := "/tmp/Packages.gz"
-	pkgMetaDir := "./"
+	PkgMetaFile := "./builds/elxr12/Packages.gz"
+	pkgMetaDir := "./builds"
 	if dir := os.DirFS(PkgMetaFile); dir != nil {
 		pkgMetaDir = filepath.Dir(PkgMetaFile)
 	}
