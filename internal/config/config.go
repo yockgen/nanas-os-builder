@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/intel-innersource/os.linux.tiberos.os-curation-tool/internal/validate"
 	"go.uber.org/zap"
-	"os"
 )
 
 // BuildSpec represents your JSON schema.
@@ -35,7 +36,7 @@ func Load(path string) (*BuildSpec, error) {
 		return nil, err
 	}
 	// validate raw JSON against schema
-	if err := validate.ValidateJSON(data); err != nil {
+	if err := validate.ValidateComposerJSON(data); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 	// unmarshal into typed struct

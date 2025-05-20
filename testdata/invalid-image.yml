@@ -1,0 +1,16 @@
+filename: disk.raw
+format: raw
+size: 4GiB
+
+partitions:
+  - name: EFI
+    type: efi
+    size: 512MiB
+    fsType: vfat
+    mountPoint: /boot/efi
+
+  - name: Root
+    type: invalid
+    size: rest    # Use the rest of the disk space or specify a size
+    fsType: ext1
+    mountPoint: /

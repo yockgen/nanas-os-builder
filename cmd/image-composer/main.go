@@ -179,7 +179,7 @@ func executeValidate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate the JSON against schema
-	if err := validate.ValidateJSON(data); err != nil {
+	if err := validate.ValidateComposerJSON(data); err != nil {
 		return fmt.Errorf("validation failed: %v", err)
 	}
 

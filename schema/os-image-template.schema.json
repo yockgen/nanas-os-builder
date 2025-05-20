@@ -1,0 +1,68 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://https://raw.githubusercontent.com/intel-innersource/os.linux.tiberos.os-curation-tool/refs/heads/main/schemas/os-image-template.schema.json",
+	"title": "OS Image Template",
+	"description": "Defines the layout for a raw or VHD/X image",
+	"type": "object",
+	"properties": {
+		"filename": {
+			"type": "string",
+			"description": "Name of the output disk image file, e.g. \"disk.raw\""
+		},
+		"size": {
+			"type": "string",
+			"description": "Size of the disk image, e.g. \"4GiB\""
+		},
+		"partitions": {
+			"type": "array",
+			"description": "List of partitions to create",
+			"minItems": 1,
+			"items": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "Identifier for this partition, e.g. \"EFI\" or \"Root\""
+					},
+					"type": {
+						"type": "string",
+						"enum": [
+							"efi",
+							"primary"
+						],
+						"description": "\"efi\" for the EFI System Partition, \"primary\" for other partitions"
+					},
+					"size": {
+						"type": "string",
+						"description": "Size of this partition, e.g. \"512MiB\" or \"rest\""
+					},
+					"fsType": {
+						"type": "string",
+						"enum": [
+							"vfat",
+							"ext4"
+						],
+						"description": "Filesystem type to format this partition with"
+					},
+					"mountPoint": {
+						"type": "string",
+						"description": "Mount point inside the chroot, e.g. \"/boot/efi\" or \"/\""
+					}
+				},
+				"required": [
+					"name",
+					"type",
+					"size",
+					"fsType",
+					"mountPoint"
+				],
+				"additionalProperties": false
+			}
+		}
+	},
+	"required": [
+		"filename",
+		"size",
+		"partitions"
+	]
+}
