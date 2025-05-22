@@ -1,7 +1,7 @@
 # Image Composer Tool
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Go Lint Status](https://github.com/open-edge-platform/image-composer/actions/workflows/go-lint.yml/badge.svg?branch=main)](https://github.com/open-edge-platform/image-composer/actions/workflows/go-lint.yml)
+[![Go Lint Check](https://github.com/open-edge-platform/image-composer/actions/workflows/go-lint.yml/badge.svg)](https://github.com/open-edge-platform/image-composer/actions/workflows/go-lint.yml)
 
 The Image Composer Tool (ICT) is a toolchain that enables building immutable
 Linux distributions using a simple toolchain from pre-built packages emanating
