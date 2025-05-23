@@ -3,6 +3,7 @@ module github.com/intel-innersource/os.linux.tiberos.os-curation-tool
 go 1.22.12
 
 require (
+	github.com/ProtonMail/go-crypto v1.2.0
 	github.com/cavaliergopher/rpm v1.3.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/schollz/progressbar/v3 v3.12.0
@@ -13,7 +14,6 @@ require (
 )
 
 require (
-	github.com/ProtonMail/go-crypto v1.2.0 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
