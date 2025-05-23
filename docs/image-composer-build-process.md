@@ -67,7 +67,7 @@ See also:
 - [Validate Command](./image-composer-cli-specification.md#validate-command) for
 validating build specifications without building
 
-### 2. Package Stage
+### 2. Package Download Stage
 
 **Purpose**: Collect all packages required for the image and prepare them for
 installation.
@@ -160,61 +160,43 @@ how package caching works and benefits build performance
 
 ### 3. Compose Stage
 
-**Purpose**: Create the base image structure and install all packages.
+#### Image Creation
+**Purpose**: Disk and filesystem preparation and install all packages.
 
 **Key Tasks**:
+- Create raw file, format partitions and filesystems
+- Create empty raw file and create partitions according to the configs
+- Format the partitions' filesystem
 
-- Set up the base filesystem structure in the working directory
-- Install the base OS according to the specified provider
+#### Generic System Installation
+
+**Purpose**: Install OS packages
+
+**Key Tasks**:
+- Run pre-installation scripts
+- Install OS packages, config general system config, general OS image installation
+- Configure the base operating system environment
 - Install all collected packages from the packages stage
-- Apply basic system configuration
-- Set up the package manager for the target OS
-
-**Provider Integration**:
-
-- Provider-specific tools are used to create the base image
-  - For Ubuntu: debootstrap
-  - For Red Hat: dnf/yum
-  - For Azure: based on provided base images
-  - For Edge Microvisor: toolkit-specific methods
-
-**Working Directory**:
-
-- During this stage, significant disk space is used in the working directory
-- The working directory location can be configured globally or per command
-
-See also:
-
-- [Provider Command](./image-composer-cli-specification.md#provider-command) for
-managing OS providers used in the compose stage
-
-### 4. Configuration Stage
-
-**Purpose**: Apply all customizations specified in the build spec to the
-composed image.
-
-**Key Tasks**:
-
 - Configure network settings
 - Set up user accounts
 - Install and configure SSH keys
 - Copy custom files to their destinations
-- Execute custom scripts
 - Enable or disable system services
-- Apply security policies
 - Configure bootloader options
+- Run post-installation scripts
 
-**Script Execution**:
+#### Security configuration
+**Purpose**: Configure Security features
 
-- Scripts specified in the build spec are executed in the order listed
-- Scripts can run either in the host environment or in a chroot environment
-- Script exit codes are monitored, and non-zero exit codes cause build failure
+**Key Tasks**:
+- Configure security related settings, for example: SELinux, LVM, secure boot, readonly filesystem, etc. 
 
-**File Operations**:
+### 4. Image Signing
 
-- Custom files are copied with the specified permissions and ownership
-- Destination paths are created if they don't exist
-- Symbolic links are preserved unless otherwise specified
+**Purpose**: Sign the image
+
+**Key Tasks**:
+- Apply digital signatures for image integrity verification (if required)
 
 See also:
 
@@ -223,16 +205,27 @@ template-based configurations
 
 ### 5. Finalize Stage
 
-**Purpose**: Verify the image, prepare it for output, and store it in the cache.
+#### Format Conversion
+**Purpose**: Output format preparation
 
 **Key Tasks**:
-
-- Run final verification checks on the image
-- Convert the image to the specified output format
+- Convert raw image to other required format
 - Apply compression if specified
-- Generate metadata about the build
+- According to the user config, convert the raw image to VHD/VHDX/qcow2, etc.
+
+#### Manifest generation
+**Purpose**: Generate manifest and SBOM 
+
+**Key Tasks**:
+- Generate manifest file
+- Generate SBOM
+
+#### Chache image
+
+**Purpose**: Store it in the cache.
+
+**Key Tasks**:
 - Store the image in the image cache if enabled
-- Copy the final image to the output location
 
 **Output Formats**:
 
