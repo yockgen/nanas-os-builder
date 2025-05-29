@@ -1,0 +1,36 @@
+image:
+  name: azl3-x86_64-edge
+  version: "1.0.0"
+
+target:
+  os: azure-linux # Target OS name
+  dist: azl3 # Target OS distribution
+  arch: x86_64 # Target OS architecture
+  imageType: raw # Image type, valid value: [raw, iso].
+
+# Disk:
+# Use defaults, Creates a single root partition with EFI boot
+
+systemConfigs:
+  - name: edge
+    description: Default yml configuration for edge image
+
+    # Package Configuration
+    packages:
+      # Additional packages beyond the base system
+      - openssh-server      # Remote access
+      - docker-ce          # Container runtime
+      - vim                # Text editor
+      - curl               # HTTP client
+      - wget               # File downloader
+
+    # Kernel Configuration
+    kernel:
+      version: "6.12"
+      cmdline: "quiet splash"
+
+    # Everything else uses defaults:
+    # Network: Uses DHCP on first interface
+    # Security: Enables distro-appropriate security (SELinux for AzureLinux)
+    # Services: Enables SSH, disables unnecessary services
+    # Users: Creates default admin user with sudo access
