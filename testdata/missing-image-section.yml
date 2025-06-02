@@ -1,0 +1,15 @@
+# Missing entire image section
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+systemConfigs:
+  - name: test
+    description: Test configuration
+    packages:
+      - openssh-server
+    kernel:
+      version: "6.12"
+      cmdline: "quiet"

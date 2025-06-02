@@ -1,0 +1,9 @@
+image:
+  name: test
+  version: "1.0.0"
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+systemConfigs: []  # Invalid: minItems is 1

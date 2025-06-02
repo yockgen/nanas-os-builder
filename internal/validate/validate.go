@@ -33,20 +33,11 @@ func ValidateAgainstSchema(name string, schemaBytes, data []byte) error {
 	return nil
 }
 
-// ValidateComposerJSON runs the composer schema against data
-func ValidateComposerJSON(data []byte) error {
-	return ValidateAgainstSchema(
-		"os-image-composer.schema.json",
-		schema_pkg.ComposerSchema,
-		data,
-	)
-}
-
-// ValidateTemplateJSON runs the template schema against data
-func ValidateImageJSON(data []byte) error {
+// ValidateImageTemplateJSON runs the template schema against data
+func ValidateImageTemplateJSON(data []byte) error {
 	return ValidateAgainstSchema(
 		"os-image-template.schema.json",
-		schema_pkg.ImageSchema,
+		schema_pkg.ImageTemplateSchema,
 		data,
 	)
 }

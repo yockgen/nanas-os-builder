@@ -1,0 +1,17 @@
+image:
+  name: test-image
+  version: 1.0  # Should be string, not number
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+systemConfigs:
+  - name: test
+    description: Test configuration
+    packages: "single-package"  # Should be array, not string
+    kernel:
+      version: 6.12  # Should be string, not number
+      cmdline: "quiet"

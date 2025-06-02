@@ -1,8 +1,0 @@
-{
-    "distro": "UnknownOS",
-    "version": "1.0",
-    "packages": [],
-    "immutable": false,
-    "output": ["exe"],
-    "kernel": {}
-  }

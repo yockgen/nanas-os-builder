@@ -1,0 +1,13 @@
+image:
+  name: test-image
+  version: "1.0.0"
+
+# Missing target section
+systemConfigs:
+  - name: test
+    description: Test configuration
+    packages:
+      - openssh-server
+    kernel:
+      version: "6.12"
+      cmdline: "quiet"

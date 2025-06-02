@@ -1,0 +1,13 @@
+image:
+  name: test
+  version: "1.0.0"
+target:
+  os: azure-linux
+  dist: emt3  # Invalid: azure-linux should only use azl3
+  arch: x86_64
+  imageType: raw
+systemConfigs:
+  - name: test
+    packages: ["test"]
+    kernel:
+      version: "6.12"

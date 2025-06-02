@@ -22,21 +22,6 @@ func loadFile(t *testing.T, relPath string) []byte {
 	return data
 }
 
-// Test legacy JSON composer format (for backward compatibility)
-func TestValidComposerJSON(t *testing.T) {
-	v := loadFile(t, "testdata/valid.json")
-	if err := ValidateComposerJSON(v); err != nil {
-		t.Errorf("expected valid.json to pass, but got: %v", err)
-	}
-}
-
-func TestInvalidComposerJSON(t *testing.T) {
-	v := loadFile(t, "testdata/invalid.json")
-	if err := ValidateComposerJSON(v); err == nil {
-		t.Errorf("expected invalid.json to fail validation")
-	}
-}
-
 // Test new YAML image template format
 func TestValidImageTemplate(t *testing.T) {
 	v := loadFile(t, "image-templates/azl3-x86_64-edge-raw.yml")
@@ -54,7 +39,7 @@ func TestValidImageTemplate(t *testing.T) {
 		t.Errorf("json marshaling error: %v", err)
 		return
 	}
-	if err := ValidateImageJSON(dataJSON); err != nil {
+	if err := ValidateImageTemplateJSON(dataJSON); err != nil {
 		t.Errorf("expected image-templates/azl3-x86_64-edge-raw.yml to pass, but got: %v", err)
 	}
 }
@@ -76,7 +61,7 @@ func TestInvalidImageTemplate(t *testing.T) {
 		return
 	}
 
-	if err := ValidateImageJSON(dataJSON); err == nil {
+	if err := ValidateImageTemplateJSON(dataJSON); err == nil {
 		t.Errorf("expected testdata/invalid-image.yml to pass, but got: %v", err)
 	}
 }
@@ -117,36 +102,15 @@ func TestInvalidConfig(t *testing.T) {
 
 	if err := ValidateConfigJSON(dataJSON); err == nil {
 		t.Errorf("expected invalid-config.json to fail validation: %v", err)
-	} else {
-		t.Logf("expected validation error: %v", err)
 	}
 }
 
-// Test validation of template structure
+// Test validation of template structure using external test files
 func TestImageTemplateStructure(t *testing.T) {
-	// Test a minimal valid template
-	minimalTemplate := `image:
-  name: test-image
-  version: "1.0.0"
-
-target:
-  os: azure-linux
-  dist: azl3
-  arch: x86_64
-  imageType: raw
-
-systemConfigs:
-  - name: minimal
-    description: Minimal test configuration
-    packages:
-      - openssh-server
-    kernel:
-      version: "6.12"
-      cmdline: "quiet"
-`
+	v := loadFile(t, "testdata/complete-valid-template.yml")
 
 	var raw interface{}
-	if err := yaml.Unmarshal([]byte(minimalTemplate), &raw); err != nil {
+	if err := yaml.Unmarshal(v, &raw); err != nil {
 		t.Fatalf("failed to parse minimal template: %v", err)
 	}
 
@@ -155,29 +119,16 @@ systemConfigs:
 		t.Fatalf("failed to marshal to JSON: %v", err)
 	}
 
-	if err := ValidateImageJSON(dataJSON); err != nil {
+	if err := ValidateImageTemplateJSON(dataJSON); err != nil {
 		t.Errorf("minimal template should be valid, but got: %v", err)
 	}
 }
 
 func TestImageTemplateMissingFields(t *testing.T) {
-	// Test template missing required fields
-	invalidTemplate := `image:
-  name: test-image
-
-target:
-  os: azure-linux
-  dist: azl3
-  arch: x86_64
-
-systemConfigs:
-  - name: incomplete
-    packages:
-      - openssh-server
-`
+	v := loadFile(t, "testdata/incomplete-template.yml")
 
 	var raw interface{}
-	if err := yaml.Unmarshal([]byte(invalidTemplate), &raw); err != nil {
+	if err := yaml.Unmarshal(v, &raw); err != nil {
 		t.Fatalf("failed to parse invalid template: %v", err)
 	}
 
@@ -186,7 +137,71 @@ systemConfigs:
 		t.Fatalf("failed to marshal to JSON: %v", err)
 	}
 
-	if err := ValidateImageJSON(dataJSON); err == nil {
+	if err := ValidateImageTemplateJSON(dataJSON); err == nil {
 		t.Errorf("incomplete template should fail validation")
+	}
+}
+
+// Table-driven test for multiple template validation scenarios
+func TestImageTemplateValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		file        string
+		shouldPass  bool
+		description string
+	}{
+		{
+			name:        "ValidComplete",
+			file:        "testdata/complete-valid-template.yml",
+			shouldPass:  true,
+			description: "complete template with all optional fields",
+		},
+		{
+			name:        "InvalidMissingImage",
+			file:        "testdata/missing-image-section.yml",
+			shouldPass:  false,
+			description: "template missing image section",
+		},
+		{
+			name:        "InvalidMissingTarget",
+			file:        "testdata/missing-target-section.yml",
+			shouldPass:  false,
+			description: "template missing target section",
+		},
+		{
+			name:        "InvalidMissingSystemConfigs",
+			file:        "testdata/missing-systemconfigs.yml",
+			shouldPass:  false,
+			description: "template missing systemConfigs section",
+		},
+		{
+			name:        "InvalidWrongTypes",
+			file:        "testdata/wrong-field-types.yml",
+			shouldPass:  false,
+			description: "template with incorrect field types",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := loadFile(t, tt.file)
+
+			var raw interface{}
+			if err := yaml.Unmarshal(v, &raw); err != nil {
+				t.Fatalf("failed to parse template %s: %v", tt.file, err)
+			}
+
+			dataJSON, err := json.Marshal(raw)
+			if err != nil {
+				t.Fatalf("failed to marshal to JSON: %v", err)
+			}
+
+			err = ValidateImageTemplateJSON(dataJSON)
+			if tt.shouldPass && err != nil {
+				t.Errorf("expected %s to pass validation (%s), but got error: %v", tt.file, tt.description, err)
+			} else if !tt.shouldPass && err == nil {
+				t.Errorf("expected %s to fail validation (%s), but it passed", tt.file, tt.description)
+			}
+		})
 	}
 }

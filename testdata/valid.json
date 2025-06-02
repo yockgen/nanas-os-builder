@@ -1,9 +1,0 @@
-{
-    "distro": "AzureLinux",
-    "version": "3",
-    "arch": "x86_64",
-    "packages": ["cloud-init", "rsyslog"],
-    "immutable": true,
-    "output": "iso",
-    "kernel": { "version": "6.12", "cmdline": "quiet splash" }
-}

@@ -99,7 +99,7 @@ func parseYAMLTemplate(data []byte) (*ImageTemplate, error) {
 	}
 
 	// Validate against image template schema
-	if err := validate.ValidateImageJSON(jsonData); err != nil {
+	if err := validate.ValidateImageTemplateJSON(jsonData); err != nil {
 		return nil, fmt.Errorf("template validation error: %w", err)
 	}
 
@@ -109,34 +109,7 @@ func parseYAMLTemplate(data []byte) (*ImageTemplate, error) {
 		return nil, fmt.Errorf("parsing template: %w", err)
 	}
 
-	// Validate template has required content
-	if err := validateTemplateContent(&template); err != nil {
-		return nil, fmt.Errorf("template content validation: %w", err)
-	}
-
 	return &template, nil
-}
-
-// validateTemplateContent validates the template has required content
-func validateTemplateContent(template *ImageTemplate) error {
-	if len(template.SystemConfigs) == 0 {
-		return fmt.Errorf("no system configurations found in template")
-	}
-
-	// Validate supported OS combinations
-	validCombinations := map[string]map[string]bool{
-		"azure-linux": {"azl3": true},
-		"emt":         {"emt3": true},
-		"elxr":        {"elxr12": true},
-	}
-
-	if validDists, ok := validCombinations[template.Target.OS]; !ok {
-		return fmt.Errorf("unsupported OS: %s", template.Target.OS)
-	} else if !validDists[template.Target.Dist] {
-		return fmt.Errorf("unsupported distribution %s for OS %s", template.Target.Dist, template.Target.OS)
-	}
-
-	return nil
 }
 
 // GetProviderName returns the provider name for the given template
@@ -197,7 +170,7 @@ func DefaultGlobalConfig() *GlobalConfig {
 		Workers:  8,
 		CacheDir: "./cache",
 		WorkDir:  "./workspace",
-		TempDir:  "",
+		TempDir:  "./tmp",
 
 		Logging: LoggingConfig{
 			Level: "info",

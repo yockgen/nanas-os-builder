@@ -1,0 +1,20 @@
+image:
+  name: complete-test-image
+  version: "2.0.0"
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+systemConfigs:
+  - name: complete
+    packages:
+      - openssh-server
+      - curl
+      - vim
+      - git
+    kernel:
+      version: "6.12"
+      cmdline: "quiet splash"

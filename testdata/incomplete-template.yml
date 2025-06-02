@@ -1,0 +1,15 @@
+image:
+  name: test-image
+  # Missing version
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  # Missing imageType
+
+systemConfigs:
+  - name: incomplete
+    packages:
+      - openssh-server
+    # Missing kernel section which might be required

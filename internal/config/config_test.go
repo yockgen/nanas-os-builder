@@ -158,56 +158,51 @@ func TestUnsupportedFileFormat(t *testing.T) {
 }
 
 func TestUnsupportedDistribution(t *testing.T) {
-	template := &ImageTemplate{
-		Target: struct {
-			OS        string `yaml:"os"`
-			Dist      string `yaml:"dist"`
-			Arch      string `yaml:"arch"`
-			ImageType string `yaml:"imageType"`
-		}{
-			OS:        "unknown-os",
-			Dist:      "unknown-dist",
-			Arch:      "x86_64",
-			ImageType: "iso",
-		},
-		SystemConfigs: []SystemConfig{
-			{
-				Name:        "test-config",
-				Description: "Test configuration",
-				Packages:    []string{"package1"},
-				Kernel: KernelConfig{
-					Version: "6.12",
-					Cmdline: "quiet",
-				},
-			},
-		},
-	}
+	// This test verifies that schema validation catches invalid OS/dist combinations
 
-	err := validateTemplateContent(template)
+	invalidYaml := `image:
+  name: test
+  version: "1.0.0"
+target:
+  os: azure-linux
+  dist: emt3  # Invalid: azure-linux should only use azl3
+  arch: x86_64
+  imageType: raw
+systemConfigs:
+  - name: test
+    packages: ["test"]
+    kernel:
+      version: "6.12"
+`
+
+	// This should fail during schema validation
+	_, err := parseYAMLTemplate([]byte(invalidYaml))
 	if err == nil {
-		t.Errorf("expected error for unsupported OS")
+		t.Errorf("expected schema validation error for invalid OS/dist combination")
+	}
+	if !strings.Contains(err.Error(), "template validation error") {
+		t.Errorf("expected schema validation error, got: %v", err)
 	}
 }
 
 func TestEmptySystemConfigs(t *testing.T) {
-	template := &ImageTemplate{
-		Target: struct {
-			OS        string `yaml:"os"`
-			Dist      string `yaml:"dist"`
-			Arch      string `yaml:"arch"`
-			ImageType string `yaml:"imageType"`
-		}{
-			OS:        "azure-linux",
-			Dist:      "azl3",
-			Arch:      "x86_64",
-			ImageType: "iso",
-		},
-		SystemConfigs: []SystemConfig{}, // Empty
-	}
+	// This test verifies that schema validation catches empty systemConfigs
 
-	err := validateTemplateContent(template)
+	invalidYaml := `image:
+  name: test
+  version: "1.0.0"
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+systemConfigs: []  # Invalid: minItems is 1
+`
+
+	// This should fail during schema validation
+	_, err := parseYAMLTemplate([]byte(invalidYaml))
 	if err == nil {
-		t.Errorf("expected error for empty system configurations")
+		t.Errorf("expected schema validation error for empty systemConfigs")
 	}
 }
 
@@ -255,12 +250,6 @@ func TestAllSupportedProviders(t *testing.T) {
 		version := template.GetDistroVersion()
 		if version != tc.version {
 			t.Errorf("for %s/%s expected version '%s', got '%s'", tc.os, tc.dist, tc.version, version)
-		}
-
-		// Test validation
-		err := validateTemplateContent(template)
-		if err != nil {
-			t.Errorf("validation failed for %s/%s: %v", tc.os, tc.dist, err)
 		}
 	}
 }
