@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/open-edge-platform/image-composer/internal/utils/config/validate"
-	"github.com/open-edge-platform/image-composer/internal/utils/general/logger"
+	"github.com/open-edge-platform/image-composer/internal/config/validate"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 	"gopkg.in/yaml.v3"
 )
 

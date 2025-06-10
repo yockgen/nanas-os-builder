@@ -12,7 +12,7 @@ import (
 	"sort"
 
 	"github.com/open-edge-platform/image-composer/internal/provider"
-	"github.com/open-edge-platform/image-composer/internal/utils/general/logger"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 
 	"github.com/cavaliergopher/rpm"
 )

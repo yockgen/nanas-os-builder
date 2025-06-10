@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/open-edge-platform/image-composer/internal/config"
+	"github.com/open-edge-platform/image-composer/internal/ospackage/debutils"
 	"github.com/open-edge-platform/image-composer/internal/provider"
-	"github.com/open-edge-platform/image-composer/internal/utils/config"
-	"github.com/open-edge-platform/image-composer/internal/utils/general/logger"
-	"github.com/open-edge-platform/image-composer/internal/utils/package/debutils"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 )
 
 // DEB: https://deb.debian.org/debian/dists/bookworm/main/binary-amd64/Packages.gz

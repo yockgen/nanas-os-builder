@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/cavaliergopher/rpm"
-	"github.com/open-edge-platform/image-composer/internal/utils/general/logger"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 	"github.com/schollz/progressbar/v3"
 )
 

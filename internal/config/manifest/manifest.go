@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/open-edge-platform/image-composer/internal/utils/general/logger"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 )
 
 // SoftwarePackageManifest represents the structure of the manifest file.

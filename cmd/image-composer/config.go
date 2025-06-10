@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/open-edge-platform/image-composer/internal/utils/config"
+	"github.com/open-edge-platform/image-composer/internal/config"
 	"github.com/spf13/cobra"
 )
 

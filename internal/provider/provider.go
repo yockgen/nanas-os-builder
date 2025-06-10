@@ -1,7 +1,7 @@
 package provider
 
 import (
-	"github.com/open-edge-platform/image-composer/internal/utils/config"
+	"github.com/open-edge-platform/image-composer/internal/config"
 )
 
 // PackageInfo holds everything you need to fetch + verify one artifact.

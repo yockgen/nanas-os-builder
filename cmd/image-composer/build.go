@@ -5,14 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/open-edge-platform/image-composer/internal/config"
+	"github.com/open-edge-platform/image-composer/internal/ospackage/pkgfetcher"
+	"github.com/open-edge-platform/image-composer/internal/ospackage/rpmutils"
 	"github.com/open-edge-platform/image-composer/internal/provider"
 	_ "github.com/open-edge-platform/image-composer/internal/provider/azurelinux3" // register provider
 	_ "github.com/open-edge-platform/image-composer/internal/provider/elxr12"      // register provider
 	_ "github.com/open-edge-platform/image-composer/internal/provider/emt3_0"      // register provider
-	"github.com/open-edge-platform/image-composer/internal/utils/config"
-	"github.com/open-edge-platform/image-composer/internal/utils/general/logger"
-	"github.com/open-edge-platform/image-composer/internal/utils/package/pkgfetcher"
-	"github.com/open-edge-platform/image-composer/internal/utils/package/rpmutils"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 	"github.com/spf13/cobra"
 )
 

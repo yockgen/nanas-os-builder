@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/open-edge-platform/image-composer/internal/ospackage/pkgfetcher"
 	"github.com/open-edge-platform/image-composer/internal/provider"
-	"github.com/open-edge-platform/image-composer/internal/utils/general/logger"
-	"github.com/open-edge-platform/image-composer/internal/utils/package/pkgfetcher"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 )
 
 // ParsePrimary parses the Packages.gz file from gzHref.
