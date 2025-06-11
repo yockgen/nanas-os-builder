@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/open-edge-platform/image-composer/internal/config"
 	"github.com/open-edge-platform/image-composer/internal/ospackage/pkgfetcher"
@@ -53,14 +51,21 @@ The template file must be in YAML format following the image template schema.`,
 // executeBuild handles the build command execution logic
 func executeBuild(cmd *cobra.Command, args []string) error {
 	// Parse command-line flags and override global config
+	// Note: We update the global singleton with any overrides
 	if cmd.Flags().Changed("workers") {
-		globalConfig.Workers = workers
+		currentConfig := config.Global()
+		currentConfig.Workers = workers
+		config.SetGlobal(currentConfig)
 	}
 	if cmd.Flags().Changed("cache-dir") {
-		globalConfig.CacheDir = cacheDir
+		currentConfig := config.Global()
+		currentConfig.CacheDir = cacheDir
+		config.SetGlobal(currentConfig)
 	}
 	if cmd.Flags().Changed("work-dir") {
-		globalConfig.WorkDir = workDir
+		currentConfig := config.Global()
+		currentConfig.WorkDir = workDir
+		config.SetGlobal(currentConfig)
 	}
 
 	log := logger.Logger()
@@ -131,33 +136,31 @@ func executeBuild(cmd *cobra.Command, args []string) error {
 		urls[i] = pkg.URL
 	}
 
-	// Ensure cache directory exists
-	absCacheDir, err := filepath.Abs(globalConfig.CacheDir)
+	// Ensure cache directory exists using global config functions
+	if err := config.EnsureCacheDir(); err != nil {
+		return fmt.Errorf("creating cache directory: %v", err)
+	}
+
+	// Ensure work directory exists using global config functions
+	if err := config.EnsureWorkDir(); err != nil {
+		return fmt.Errorf("creating work directory: %v", err)
+	}
+
+	// Get cache directory from global config
+	absCacheDir, err := config.CacheDir()
 	if err != nil {
 		return fmt.Errorf("resolving cache directory: %v", err)
 	}
-	if err := os.MkdirAll(absCacheDir, 0755); err != nil {
-		return fmt.Errorf("creating cache directory %s: %v", absCacheDir, err)
-	}
-
-	// Ensure work directory exists
-	absWorkDir, err := filepath.Abs(globalConfig.WorkDir)
-	if err != nil {
-		return fmt.Errorf("resolving work directory: %v", err)
-	}
-	if err := os.MkdirAll(absWorkDir, 0755); err != nil {
-		return fmt.Errorf("creating work directory %s: %v", absWorkDir, err)
-	}
 
 	// Download packages using configured workers and cache directory
-	log.Infof("downloading %d packages to %s using %d workers", len(urls), absCacheDir, globalConfig.Workers)
-	if err := pkgfetcher.FetchPackages(urls, absCacheDir, globalConfig.Workers); err != nil {
+	log.Infof("downloading %d packages to %s using %d workers", len(urls), absCacheDir, config.Workers())
+	if err := pkgfetcher.FetchPackages(urls, absCacheDir, config.Workers()); err != nil {
 		return fmt.Errorf("fetch failed: %v", err)
 	}
 	log.Info("all downloads complete")
 
 	// Verify downloaded packages
-	if err := p.Validate(globalConfig.CacheDir); err != nil {
+	if err := p.Validate(absCacheDir); err != nil {
 		return fmt.Errorf("verification failed: %v", err)
 	}
 

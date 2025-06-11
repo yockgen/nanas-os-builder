@@ -83,6 +83,7 @@ func (p *AzureLinux3) Init(template *config.ImageTemplate) error {
 	log.Infof("name=%s", cfg.Name)
 	log.Infof("url=%s", cfg.URL)
 	log.Infof("primary.xml.gz=%s", p.gzHref)
+	log.Infof("using %d workers for downloads", config.Workers()) // Use global config
 	return nil
 }
 
@@ -101,6 +102,10 @@ func (p *AzureLinux3) Packages() ([]provider.PackageInfo, error) {
 }
 
 func (p *AzureLinux3) MatchRequested(requests []string, all []provider.PackageInfo) ([]provider.PackageInfo, error) {
+	log := logger.Logger()
+
+	log.Debugf("matching %d requested packages against %d available", len(requests), len(all))
+
 	var out []provider.PackageInfo
 
 	for _, want := range requests {
@@ -142,6 +147,9 @@ func (p *AzureLinux3) MatchRequested(requests []string, all []provider.PackageIn
 func (p *AzureLinux3) Validate(destDir string) error {
 	log := logger.Logger()
 
+	// Use global config function with built-in 4-worker cap
+	workers := config.VerificationWorkers()
+
 	// read the GPG key from the repo config
 	resp, err := http.Get(p.repoCfg.GPGKey)
 	if err != nil {
@@ -154,10 +162,10 @@ func (p *AzureLinux3) Validate(destDir string) error {
 		return fmt.Errorf("read GPG key body: %w", err)
 	}
 	log.Infof("fetched GPG key (%d bytes)", len(keyBytes))
-	log.Debugf("GPG key: %s\n", keyBytes)
 
-	// store in a temp file
-	tmp, err := os.CreateTemp("", "azurelinux-gpg-*.asc")
+	// Use global temp directory
+	tempDir := config.TempDir()
+	tmp, err := os.CreateTemp(tempDir, "azurelinux-gpg-*.asc")
 	if err != nil {
 		return fmt.Errorf("create temp key file: %w", err)
 	}
@@ -182,8 +190,8 @@ func (p *AzureLinux3) Validate(destDir string) error {
 	}
 
 	start := time.Now()
-	results := rpmutils.VerifyAll(rpmPaths, tmp.Name(), 4)
-	log.Infof("RPM verification took %s", time.Since(start))
+	results := rpmutils.VerifyAll(rpmPaths, tmp.Name(), workers)
+	log.Infof("RPM verification took %s using %d workers", time.Since(start), workers)
 
 	// Check results
 	for _, r := range results {
@@ -209,6 +217,7 @@ func (p *AzureLinux3) Resolve(req []provider.PackageInfo, all []provider.Package
 	}
 	log.Infof("need a total of %d RPMs (including dependencies)", len(needed))
 
+	// Simple debug logging - let logger handle level filtering
 	for _, pkg := range needed {
 		log.Debugf("-> %s", pkg.Name)
 	}
