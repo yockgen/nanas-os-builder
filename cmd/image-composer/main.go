@@ -16,9 +16,6 @@ var (
 	CommitSHA = "unknown"
 )
 
-// Global configuration
-var globalConfig *config.GlobalConfig
-
 // Command-line flags that can override config file settings
 var (
 	configFile string = "" // Path to config file
@@ -32,12 +29,14 @@ func main() {
 		configFilePath = config.FindConfigFile()
 	}
 
-	var err error
-	globalConfig, err = config.LoadGlobalConfig(configFilePath)
+	globalConfig, err := config.LoadGlobalConfig(configFilePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Set global config singleton - this is the key change!
+	config.SetGlobal(globalConfig)
 
 	// Setup logger with configured level
 	_, cleanup := logger.InitWithLevel(globalConfig.Logging.Level)
@@ -49,20 +48,22 @@ func main() {
 	// Handle log level override after flag parsing
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if logLevel != "" {
+			// Update both the local config and the global singleton
 			globalConfig.Logging.Level = logLevel
+			config.SetGlobal(globalConfig) // Update singleton with new log level
 			logger.SetLogLevel(logLevel)
 		}
 	}
 
-	// Log configuration info
+	// Log configuration info using global config functions
 	log := logger.Logger()
 	if configFilePath != "" {
 		log.Infof("Using configuration from: %s", configFilePath)
 	}
-	if globalConfig.Logging.Level == "debug" {
-		log.Debugf("Config: workers=%d, cache_dir=%s, work_dir=%s, temp_dir=%s",
-			globalConfig.Workers, globalConfig.CacheDir, globalConfig.WorkDir, globalConfig.TempDir)
-	}
+	cacheDir, _ := config.CacheDir()
+	workDir, _ := config.WorkDir()
+	log.Debugf("Config: workers=%d, cache_dir=%s, work_dir=%s, temp_dir=%s",
+		config.Workers(), cacheDir, workDir, config.TempDir())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
