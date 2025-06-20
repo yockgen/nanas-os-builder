@@ -60,14 +60,15 @@ type KernelConfig struct {
 
 // PartitionInfo holds information about a partition in the disk layout
 type PartitionInfo struct {
-	Name       string   // Name: label for the partition
-	ID         string   // ID: unique identifier for the partition; can be used as a key
-	Flags      []string // Flags: optional flags for the partition (e.g., "boot", "hidden")
-	TypeGUID   string   // TypeGUID: GPT type GUID for the partition (e.g., "8300" for Linux filesystem)
-	FsType     string   // FsType: filesystem type (e.g., "ext4", "xfs", etc.);
-	SizeBytes  uint64   // SizeBytes: size of the partition in bytes
-	StartBytes uint64   // StartBytes: absolute start offset in bytes; if zero, partitions are laid out sequentially
-	MountPoint string   // MountPoint: optional mount point for the partition (e.g., "/boot", "/rootfs")
+	Name       string   `yaml:"name"`       // Name: label for the partition
+	ID         string   `yaml:"id"`         // ID: unique identifier for the partition; can be used as a key
+	Flags      []string `yaml:"flags"`      // Flags: optional flags for the partition (e.g., "boot", "hidden")
+	Type       string   `yaml:"type"`       // Type: partition type (e.g., "esp", "linux-root-amd64")
+	TypeGUID   string   `yaml:"typeUUID"`   // TypeGUID: GPT type GUID for the partition (e.g., "8300" for Linux filesystem)
+	FsType     string   `yaml:"fsType"`     // FsType: filesystem type (e.g., "ext4", "xfs", etc.);
+	Start      string   `yaml:"start"`      // Start: start offset of the partition; can be a absolute size (e.g., "512MiB")
+	End        string   `yaml:"end"`        // End: end offset of the partition; can be a absolute size (e.g., "2GiB") or "0" for the end of the disk
+	MountPoint string   `yaml:"mountPoint"` // MountPoint: optional mount point for the partition (e.g., "/boot", "/rootfs")
 }
 
 // Disk Info holds information about the disk layout
