@@ -10,8 +10,10 @@ import (
 	"github.com/open-edge-platform/image-composer/internal/chroot"
 	"github.com/open-edge-platform/image-composer/internal/config"
 	"github.com/open-edge-platform/image-composer/internal/image/imageboot"
+	"github.com/open-edge-platform/image-composer/internal/image/imagedisc"
 	"github.com/open-edge-platform/image-composer/internal/image/imagesecure"
 	"github.com/open-edge-platform/image-composer/internal/image/imagesign"
+	"github.com/open-edge-platform/image-composer/internal/utils/file"
 	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 	"github.com/open-edge-platform/image-composer/internal/utils/mount"
 	"github.com/open-edge-platform/image-composer/internal/utils/shell"
@@ -47,14 +49,14 @@ func InstallImageOs(diskPathIdMap map[string]string, template *config.ImageTempl
 	}
 
 	log.Infof("Image system configuration...")
-	err = updateImageConfig(installRoot, template)
+	err = updateImageConfig(installRoot, diskPathIdMap, template)
 	if err != nil {
 		err = fmt.Errorf("failed to update image config: %w", err)
 		goto fail
 	}
 
 	log.Infof("Installing bootloader...")
-	err = imageboot.InstallImageBoot(diskPathIdMap, template)
+	err = imageboot.InstallImageBoot(installRoot, diskPathIdMap, template)
 	if err != nil {
 		err = fmt.Errorf("failed to install image boot: %w", err)
 		goto fail
@@ -250,22 +252,21 @@ func installImagePkgs(installRoot string, template *config.ImageTemplate) error 
 	return nil
 }
 
-func updateImageConfig(installRoot string, template *config.ImageTemplate) error {
-	err := updateImageHostname(installRoot, template)
-	if err != nil {
+func updateImageConfig(installRoot string, diskPathIdMap map[string]string, template *config.ImageTemplate) error {
+	if err := updateImageHostname(installRoot, template); err != nil {
 		return fmt.Errorf("failed to update image hostname: %w", err)
 	}
-	err = updateImageUsrGroup(installRoot, template)
-	if err != nil {
+	if err := updateImageUsrGroup(installRoot, template); err != nil {
 		return fmt.Errorf("failed to update image user/group: %w", err)
 	}
-	err = updateImageNetwork(installRoot, template)
-	if err != nil {
+	if err := updateImageNetwork(installRoot, template); err != nil {
 		return fmt.Errorf("failed to update image network: %w", err)
 	}
-	err = addImageAdditionalFiles(installRoot, template)
-	if err != nil {
+	if err := addImageAdditionalFiles(installRoot, template); err != nil {
 		return fmt.Errorf("failed to add additional files to image: %w", err)
+	}
+	if err := updateImageFstab(installRoot, diskPathIdMap, template); err != nil {
+		return fmt.Errorf("failed to update image fstab: %w", err)
 	}
 	return nil
 }
@@ -287,6 +288,72 @@ func updateImageNetwork(installRoot string, template *config.ImageTemplate) erro
 }
 
 func addImageAdditionalFiles(installRoot string, template *config.ImageTemplate) error {
+	return nil
+}
+
+func updateImageFstab(installRoot string, diskPathIdMap map[string]string, template *config.ImageTemplate) error {
+	const (
+		rootfsMountPoint = "/"
+		defaultOptions   = "defaults"
+		swapFsType       = "swap"
+		swapOptions      = "sw"
+		defaultDump      = "0"
+		disablePass      = "0"
+		rootPass         = "1"
+		defaultPass      = "2"
+	)
+	log := logger.Logger()
+	log.Infof("Updating fstab for image: %s", template.GetImageName())
+	fstabFullPath := filepath.Join(installRoot, "etc", "fstab")
+	diskInfo := template.GetDiskConfig()
+	partitions := diskInfo.Partitions
+	for diskId, diskPath := range diskPathIdMap {
+		for _, partition := range partitions {
+			if partition.ID == diskId {
+				// Get the partition UUID and mount point
+				partUUID, err := imagedisc.GetPartUUID(diskPath)
+				if err != nil {
+					return fmt.Errorf("failed to get partition UUID for %s: %w", diskPath, err)
+				}
+				mountId := fmt.Sprintf("PARTUUID=%s", partUUID)
+				mountPoint := partition.MountPoint
+
+				// Get the filesystem type
+				var fsType, options, pass string
+				if partition.FsType == "fat16" || partition.FsType == "fat32" {
+					fsType = "vfat"
+				} else {
+					fsType = partition.FsType
+				}
+
+				// Get the mount options
+				options = defaultOptions
+				if partition.MountOptions != "" {
+					options = partition.MountOptions
+				}
+
+				// Get the default dump and pass values
+				pass = defaultPass
+				if mountPoint == rootfsMountPoint {
+					pass = rootPass
+				}
+
+				if fsType == swapFsType {
+					// For swap partitions, set the options accordingly
+					options = swapOptions
+					pass = disablePass // No pass value for swap
+				}
+
+				newEntry := fmt.Sprintf("%v %v %v %v %v %v\n",
+					mountId, mountPoint, fsType, options, defaultDump, pass)
+				log.Debugf("Adding fstab entry: %s", newEntry)
+				err = file.Append(newEntry, fstabFullPath)
+				if err != nil {
+					return fmt.Errorf("failed to append fstab entry for %s: %w", mountPoint, err)
+				}
+			}
+		}
+	}
 	return nil
 }
 
