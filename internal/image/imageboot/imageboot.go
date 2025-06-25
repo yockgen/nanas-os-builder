@@ -1,7 +1,288 @@
 package imageboot
 
-import "github.com/open-edge-platform/image-composer/internal/config"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
 
-func InstallImageBoot(diskPathIdMap map[string]string, template *config.ImageTemplate) error {
+	"github.com/open-edge-platform/image-composer/internal/config"
+	"github.com/open-edge-platform/image-composer/internal/image/imagedisc"
+	"github.com/open-edge-platform/image-composer/internal/utils/file"
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
+	"github.com/open-edge-platform/image-composer/internal/utils/shell"
+)
+
+func getDiskPartDevByMountPoint(mountPoint string, diskPathIdMap map[string]string, template *config.ImageTemplate) string {
+	diskInfo := template.GetDiskConfig()
+	partions := diskInfo.Partitions
+	for diskId, diskPath := range diskPathIdMap {
+		for _, partition := range partions {
+			if partition.ID == diskId && partition.MountPoint == mountPoint {
+				return diskPath
+			}
+		}
+	}
+	return ""
+}
+
+func copyFile(src, dst string) error {
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return fmt.Errorf("source file does not exist: %s", src)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return fmt.Errorf("failed to create directory for destination file: %w", err)
+	}
+
+	if _, err := shell.ExecCmd("cp "+src+" "+dst, true, "", nil); err != nil {
+		return fmt.Errorf("failed to copy file from %s to %s: %w", src, dst, err)
+	}
+	return nil
+}
+
+func replacePlaceholdersInFile(placeholder, value, filePath string) error {
+	sedCmd := fmt.Sprintf("sed -i 's|%s|%s|g' %s", placeholder, value, filePath)
+	if _, err := shell.ExecCmd(sedCmd, true, "", nil); err != nil {
+		return fmt.Errorf("failed to replace placeholder %s with %s in file %s: %w", placeholder, value, filePath, err)
+	}
+	return nil
+}
+
+func installGrubWithLegacyMode(installRoot, bootUUID, bootPrefix string, template *config.ImageTemplate) error {
+	return fmt.Errorf("legacy boot mode is not implemented yet")
+}
+
+func installGrubWithEfiMode(installRoot, bootUUID, bootPrefix string, template *config.ImageTemplate) error {
+	// Expect that shim (bootx64.efi) and grub2 (grub2.efi) are installed
+	// into the EFI directory via the package installation step previously.
+
+	log := logger.Logger()
+	log.Infof("Installing Grub2 bootloader with EFI mode")
+	efiDir := "/boot/efi"
+	configDir, err := file.GetGeneralConfigDir()
+	if err != nil {
+		return fmt.Errorf("failed to get general config directory: %w", err)
+	}
+	grubAssetPath := filepath.Join(configDir, "image", "efi", "grub", "grub.cfg")
+	grubFinalPath := filepath.Join(installRoot, efiDir, "boot/grub2/grub.cfg")
+
+	if err = copyFile(grubAssetPath, grubFinalPath); err != nil {
+		return fmt.Errorf("failed to copy grub configuration file: %w", err)
+	}
+
+	if err := replacePlaceholdersInFile("{{.BootUUID}}", bootUUID, grubFinalPath); err != nil {
+		return fmt.Errorf("failed to replace boot UUID in grub configuration: %w", err)
+	}
+
+	// Replace CryptoMountCommand placeholder with an empty string for now.
+	if err := replacePlaceholdersInFile("{{.CryptoMountCommand}}", "", grubFinalPath); err != nil {
+		return fmt.Errorf("failed to replace CryptoMountCommand in grub configuration: %w", err)
+	}
+
+	prefixPath := fmt.Sprintf("%s/grub2", bootPrefix)
+	if err := replacePlaceholdersInFile("{{.PrefixPath}}", prefixPath, grubFinalPath); err != nil {
+		return fmt.Errorf("failed to replace prefix path in grub configuration: %w", err)
+	}
+
+	chmodCmd := fmt.Sprintf("chmod -R 700 %s", filepath.Dir(grubFinalPath))
+	if _, err = shell.ExecCmd(chmodCmd, true, "", nil); err != nil {
+		return fmt.Errorf("failed to set permissions for grub configuration directory: %w", err)
+	}
+
+	chmodCmd = fmt.Sprintf("chmod 400 %s", grubFinalPath)
+	if _, err = shell.ExecCmd(chmodCmd, true, "", nil); err != nil {
+		return fmt.Errorf("failed to set permissions for grub configuration file: %w", err)
+	}
+
+	return nil
+}
+
+func copyGrubEnvFile(installRoot string) error {
+	configDir, err := file.GetGeneralConfigDir()
+	if err != nil {
+		return fmt.Errorf("failed to get general config directory: %w", err)
+	}
+	grubEnvAssetPath := filepath.Join(configDir, "image", "grub2", "grubenv")
+	grubEnvFinalPath := filepath.Join(installRoot, "boot", "grub2", "grubenv")
+	if err = copyFile(grubEnvAssetPath, grubEnvFinalPath); err != nil {
+		return fmt.Errorf("failed to copy grubenv file: %w", err)
+	}
+	return nil
+}
+
+func updateGrubConfig(installRoot string) error {
+	grubConfigFile := "/boot/grub2/grub.cfg"
+	cmdStr := fmt.Sprintf("grub2-mkconfig -o %s", grubConfigFile)
+	if _, err := shell.ExecCmd(cmdStr, true, installRoot, nil); err != nil {
+		return fmt.Errorf("failed to update grub configuration: %w", err)
+	}
+	return nil
+}
+
+func updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix string, template *config.ImageTemplate) error {
+	log := logger.Logger()
+	log.Infof("Updating boot configurations")
+
+	configDir, err := file.GetGeneralConfigDir()
+	if err != nil {
+		return fmt.Errorf("failed to get general config directory: %w", err)
+	}
+
+	var configAssetPath string
+	var configFinalPath string
+	bootloaderConfig := template.GetBootloaderConfig()
+	switch bootloaderConfig.Provider {
+	case "grub":
+		configAssetPath = filepath.Join(configDir, "image", "grub2", "grub")
+		configFinalPath = filepath.Join(installRoot, "etc", "default", "grub")
+		if err = copyFile(configAssetPath, configFinalPath); err != nil {
+			return fmt.Errorf("failed to copy boot configuration file: %w", err)
+		}
+	case "systemd-boot":
+		configAssetPath = filepath.Join(configDir, "image", "efi", "bootParams.conf")
+		configFinalPath = filepath.Join(installRoot, "boot", "cmdline.conf")
+		if err = copyFile(configAssetPath, configFinalPath); err != nil {
+			return fmt.Errorf("failed to copy boot configuration file: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported bootloader provider: %s", bootloaderConfig.Provider)
+	}
+
+	if err := replacePlaceholdersInFile("{{.BootUUID}}", bootUUID, configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace BootUUID in boot configuration: %w", err)
+	}
+
+	if err := replacePlaceholdersInFile("{{.BootPrefix}}", bootPrefix, configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace BootPrefix in boot configuration: %w", err)
+	}
+
+	if err := replacePlaceholdersInFile("{{.RootPartition}}", rootDevID, configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace RootPartition in boot configuration: %w", err)
+	}
+
+	// For now, we do not support LUKS encryption, so we replace the LuksUUID placeholder with an empty string.
+	if err := replacePlaceholdersInFile("{{.LuksUUID}}", "", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace LuksUUID in boot configuration: %w", err)
+	}
+
+	// For now, we do not support LVM, so we replace the LVM placeholder with an empty string.
+	if err := replacePlaceholdersInFile("{{.LVM}}", "", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace LVM in boot configuration: %w", err)
+	}
+
+	// For now, we do not support IMAPolicy, so we replace the IMAPolicy placeholder with an empty string.
+	if err := replacePlaceholdersInFile("{{.IMAPolicy}}", "", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace IMAPolicy in boot configuration: %w", err)
+	}
+
+	// For now, we do not support SELinux, so we replace the SELinux placeholder with an empty string.
+	if err := replacePlaceholdersInFile("{{.SELinux}}", "", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace SELinux in boot configuration: %w", err)
+	}
+
+	// For now, we do not support FIPS, so we replace the FIPS placeholder with an empty string.
+	if err := replacePlaceholdersInFile("{{.FIPS}}", "", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace FIPS in boot configuration: %w", err)
+	}
+
+	// For now, we do not support CGroup, so we replace the CGroup placeholder with an empty string.
+	if err := replacePlaceholdersInFile("{{.CGroup}}", "", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace CGroup in boot configuration: %w", err)
+	}
+
+	kernelConfig := template.GetKernel()
+	if err := replacePlaceholdersInFile("{{.ExtraCommandLine}}", kernelConfig.Cmdline, configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace ExtraCommandLine in boot configuration: %w", err)
+	}
+
+	// For now, we do not support EncryptionBootUUID, so we replace the EncryptionBootUUID placeholder with an empty string.
+	if err := replacePlaceholdersInFile("{{.EncryptionBootUUID}}", "", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace EncryptionBootUUID in boot configuration: %w", err)
+	}
+
+	if err := replacePlaceholdersInFile("{{.rdAuto}}", "rd.auto=1", configFinalPath); err != nil {
+		return fmt.Errorf("failed to replace rdAuto in boot configuration: %w", err)
+	}
+
+	return nil
+}
+
+func InstallImageBoot(installRoot string, diskPathIdMap map[string]string, template *config.ImageTemplate) error {
+	var bootUUID string
+	var bootPrefix string = ""
+	var rootDev string
+	var err error
+
+	log := logger.Logger()
+	log.Infof("Installing image bootloader for: %s", template.Image.Name)
+
+	bootPartDev := getDiskPartDevByMountPoint("/boot", diskPathIdMap, template)
+	if bootPartDev == "" {
+		// /boot is not a separate partition, use root partition instead
+		bootPrefix = "/boot"
+		rootDev = getDiskPartDevByMountPoint("/", diskPathIdMap, template)
+		if rootDev == "" {
+			return fmt.Errorf("failed to find root partition for mount point '/'")
+		}
+		bootUUID, err = imagedisc.GetUUID(rootDev)
+		if err != nil {
+			return fmt.Errorf("failed to get UUID for boot partition %s: %w", rootDev, err)
+		}
+	} else {
+		bootUUID, err = imagedisc.GetUUID(bootPartDev)
+		if err != nil {
+			return fmt.Errorf("failed to get UUID for boot partition %s: %w", bootPartDev, err)
+		}
+		rootDev = getDiskPartDevByMountPoint("/", diskPathIdMap, template)
+		if rootDev == "" {
+			return fmt.Errorf("failed to find root partition for mount point '/'")
+		}
+	}
+
+	rootPartUUID, err := imagedisc.GetPartUUID(rootDev)
+	if err != nil {
+		return fmt.Errorf("failed to get partition UUID for root partition %s: %w", rootDev, err)
+	}
+	rootDevID := fmt.Sprintf("PARTUUID=%s", rootPartUUID)
+
+	bootloaderConfig := template.GetBootloaderConfig()
+	switch bootloaderConfig.Provider {
+	case "grub":
+		log.Infof("Installing GRUB bootloader")
+		if bootloaderConfig.BootType == "efi" {
+			if err := installGrubWithEfiMode(installRoot, bootUUID, bootPrefix, template); err != nil {
+				return fmt.Errorf("failed to install GRUB bootloader with EFI mode: %w", err)
+			}
+		} else if bootloaderConfig.BootType == "legacy" {
+			if err := installGrubWithLegacyMode(installRoot, bootUUID, bootPrefix, template); err != nil {
+				return fmt.Errorf("failed to install GRUB bootloader with legacy mode: %w", err)
+			}
+		}
+
+		if err := updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, template); err != nil {
+			return fmt.Errorf("failed to update boot configuration: %w", err)
+		}
+
+		if err := copyGrubEnvFile(installRoot); err != nil {
+			return fmt.Errorf("failed to copy grubenv file: %w", err)
+		}
+
+		if err := updateGrubConfig(installRoot); err != nil {
+			return fmt.Errorf("failed to update grub configuration: %w", err)
+		}
+
+	case "systemd-boot":
+		log.Infof("Installing systemd-boot bootloader")
+		if bootloaderConfig.BootType == "efi" {
+			if err := updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, template); err != nil {
+				return fmt.Errorf("failed to update boot configuration: %w", err)
+			}
+		} else {
+			return fmt.Errorf("systemd-boot is only supported in EFI mode")
+		}
+	default:
+		return fmt.Errorf("unsupported bootloader provider: %s", bootloaderConfig.Provider)
+	}
+
 	return nil
 }

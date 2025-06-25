@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"unsafe"
 
 	azcfg "github.com/microsoft/azurelinux/toolkit/tools/imagegen/configuration"
@@ -11,6 +12,7 @@ import (
 	"github.com/open-edge-platform/image-composer/internal/config"
 	"github.com/open-edge-platform/image-composer/internal/utils/convert"
 	utils "github.com/open-edge-platform/image-composer/internal/utils/logger"
+	"github.com/open-edge-platform/image-composer/internal/utils/shell"
 )
 
 const (
@@ -142,34 +144,18 @@ func DetachLoopbackDevice(diskPath string, loopDevPath string) error {
 		return fmt.Errorf("invalid loop device path")
 	}
 
+	// Wait for any pending disk IO operations to complete
+	if err := diskutils.BlockOnDiskIO(loopDevPath); err != nil {
+		return fmt.Errorf("failed to block on disk IO for loopback device %s: %w", loopDevPath, err)
+	}
+
 	// Call the Azure diskutils to detach the loopback device
 	if err := diskutils.DetachLoopbackDevice(loopDevPath); err != nil {
 		return fmt.Errorf("failed to detach loopback device: %w", err)
 	}
 
-	// Wait for the loopback device to be detached
-	if err := waitForLoopbackToDetach(diskPath, loopDevPath); err != nil {
-		return fmt.Errorf("failed to wait for loopback detach: %w", err)
-	}
 	log.Infof("Loopback device %s detached successfully from %s", diskPath, loopDevPath)
 
-	return nil
-}
-
-// WaitForLoopbackDetach waits for the loopback device to be detached.
-func waitForLoopbackToDetach(diskPath string, loopDevPath string) error {
-	log := utils.Logger()
-	log.Debugf("Waiting for loopback device %s to be detached from %s", diskPath, loopDevPath)
-
-	// Validate the loop device path
-	if diskPath == "" || loopDevPath == "" {
-		return fmt.Errorf("invalid loop device or device path")
-	}
-
-	// Call the Azure diskutils to wait for the loopback device to be detached
-	if err := diskutils.WaitForLoopbackToDetach(loopDevPath, diskPath); err != nil {
-		return fmt.Errorf("failed to wait for loopback detach: %w", err)
-	}
 	return nil
 }
 
@@ -244,4 +230,22 @@ func toAzurePartitions(parts []config.PartitionInfo) ([]azcfg.Partition, error) 
 		}
 	}
 	return azParts, nil
+}
+
+func GetUUID(diskPartitionPath string) (string, error) {
+	cmd := fmt.Sprintf("blkid %s -s UUID -o value", diskPartitionPath)
+	output, err := shell.ExecCmd(cmd, true, "", nil)
+	if err != nil {
+		return output, fmt.Errorf("failed to get partition UUID for %s: %w", diskPartitionPath, err)
+	}
+	return strings.TrimSpace(output), nil
+}
+
+func GetPartUUID(diskPartitionPath string) (string, error) {
+	cmd := fmt.Sprintf("blkid %s -s PARTUUID -o value", diskPartitionPath)
+	output, err := shell.ExecCmd(cmd, true, "", nil)
+	if err != nil {
+		return output, fmt.Errorf("failed to get partition UUID for %s: %w", diskPartitionPath, err)
+	}
+	return strings.TrimSpace(output), nil
 }
