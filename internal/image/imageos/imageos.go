@@ -239,10 +239,7 @@ func installImagePkgs(installRoot string, template *config.ImageTemplate) error 
 	imagePkgOrderedList := getImagePkgInstallList(template)
 	imagePkgNum := len(imagePkgOrderedList)
 	// Force to use the local cache repository
-	//var repositoryIDList []string = []string{"cache-repo"}
-
-	// workaround for bypass the cache-repo, use remote repo.
-	var repositoryIDList []string = []string{}
+	var repositoryIDList []string = []string{"cache-repo"}
 	for i, pkg := range imagePkgOrderedList {
 		log.Infof("Installing package %d/%d: %s", i+1, imagePkgNum, pkg)
 		if err := chroot.TdnfInstallPackage(pkg, installRoot, repositoryIDList); err != nil {

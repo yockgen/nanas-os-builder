@@ -323,7 +323,7 @@ func TdnfInstallPackage(packageName, installRoot string, repositoryIDList []stri
 	if err != nil {
 		return fmt.Errorf("failed to get chroot environment path for install root %s: %w", installRoot, err)
 	}
-	installCmd = fmt.Sprintf("tdnf install %s --releasever 3.0 --nogpgcheck --assumeyes --installroot %s",
+	installCmd = fmt.Sprintf("tdnf install %s --releasever 3.0 --setopt reposdir=/etc/yum.repos.d/ --nogpgcheck --assumeyes --installroot %s",
 		packageName, chrootInstallRoot)
 
 	if len(repositoryIDList) > 0 {
