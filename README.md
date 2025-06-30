@@ -3,21 +3,19 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Go Lint Check](https://github.com/open-edge-platform/image-composer/actions/workflows/go-lint.yml/badge.svg)](https://github.com/open-edge-platform/image-composer/actions/workflows/go-lint.yml)
 
-The Image Composer Tool (ICT) is a toolchain that enables building immutable
-Linux distributions using a simple toolchain from pre-built packages emanating
-from different Operating System Vendors (OSVs).
+The Image Composer Tool (ICT) is a toolchain that builds immutable
+Linux distributions using a simple toolchain from pre-built packages provided by different Operating System Vendors (OSVs).
 
-The ICT is developed in `golang` and is initially targeting to build custom
-images for [EMT](https://github.com/open-edge-platform/edge-microvisor-toolkit)
-(Edge Microvisor Toolkit), [Azure Linux](https://github.com/microsoft/azurelinux)
+The ICT is developed in the Go programming language (or `golang`) and initially builds custom
+images for [Edge Microvisor Toolkit](https://github.com/open-edge-platform/edge-microvisor-toolkit), [Linux OS for Azure 1P services and edge appliances](https://github.com/microsoft/azurelinux)
 and Wind River eLxr.
 
 ## Documentation
 
-- [📖 CLI Specification](./docs/architecture/image-composer-cli-specification.md) - Complete command-line reference and usage guide
-- [🔧 Build Process](./docs/architecture/image-composer-build-process.md) - Understanding the five-stage build pipeline
-- [⚡ Caching](./docs/architecture/image-composer-caching.md) - Package and image caching for performance
-- [📋 Templates](./docs/architecture/image-composer-templates.md) - Creating and using reusable image templates
+- [?? CLI Specification](./docs/architecture/image-composer-cli-specification.md) - Complete command-line reference and usage guide
+- [?? Build Process](./docs/architecture/image-composer-build-process.md) - Understanding the five-stage build pipeline Details on the five-stage build pipeline
+- [? Caching](./docs/architecture/image-composer-caching.md) - Package and image caching for performance Explanations on package cache and image cache to improve build performance and reduce resource usage
+- [?? Templates](./docs/architecture/image-composer-templates.md) - Creating and using reusable image templates Explanations on how to create and reuse image templates
 
 ## Quick Start
 
@@ -41,9 +39,9 @@ For complete usage instructions, see the [CLI Specification](./docs/architecture
 
 ### Prerequisites
 
-Image Composer Tool is developed in golang and requires installation of go version 1.22.12+. Instructions to install for a specific distribution can be found [here](https://go.dev/doc/manage-install).
+Image Composer Tool is developed in the Go programming language (or `golang`) and requires golang version 1.22.12 and above. See installation instructions for a specific distribution [here](https://go.dev/doc/manage-install).
 
-### Building
+### Build
 
 Build the image-composer using Go directly:
 
@@ -51,7 +49,7 @@ Build the image-composer using Go directly:
 go build ./cmd/image-composer
 ```
 
-Or use Earthly for a reproducible build:
+Or use Earthly framework for a reproducible build:
 
 ```bash
 # Default build
@@ -63,15 +61,15 @@ earthly +build --version=1.0.0
 
 The Earthly build automatically includes:
 
-- Version number (from --version parameter)
-- Build date (current UTC date)
+- Version number (from the --version parameter)
+- Build date (the current UTC date)
 - Git commit SHA (current repository commit)
 
 ## Configuration
 
 ### Global Configuration
 
-Image Composer Tool supports global configuration files to set tool-level parameters that apply across all image builds. Image-specific parameters are defined in YAML image template files.
+Image Composer Tool supports global configuration files for setting tool-level parameters that apply across all image builds. Image-specific parameters are defined in YAML image template files.
 
 #### Configuration File Locations
 
@@ -152,13 +150,13 @@ Builds a Linux distribution image based on the specified image template file:
 
 Flags:
 
-- `--workers, -w`: Number of concurrent download workers (overrides config file)
-- `--cache-dir, -d`: Package cache directory (overrides config file)
-- `--work-dir`: Working directory for builds (overrides config file)
+- `--workers, -w`: Number of concurrent download workers (overrides the configuration file)
+- `--cache-dir, -d`: Package cache directory (overrides the configuration file)
+- `--work-dir`: Working directory for builds (overrides the configuration file)
 - `--verbose, -v`: Enable verbose output
 - `--dotfile, -f`: Generate dependency graph as a dot file
-- `--config`: Path to configuration file
-- `--log-level`: Log level (debug, info, warn, error)
+- `--config`: Path to the configuration file
+- `--log-level`: Log level (debug, info, warn, and error)
 
 Example:
 
@@ -168,7 +166,7 @@ Example:
 
 #### config
 
-Manages global configuration:
+Manages the global configuration:
 
 ```bash
 # Show current configuration
@@ -190,17 +188,17 @@ This is useful for verifying template configurations before starting the potenti
 
 #### version
 
-Displays version information about the tool:
+Displays the tool’s version and information:
 
 ```bash
 ./image-composer version
 ```
 
-This shows the version number, build date, and Git commit SHA.
+Shows the version number, build date, and Git commit SHA.
 
 #### install-completion
 
-Installs shell completion for your current shell or a specified shell:
+Installs the shell completion feature for your current shell or a specified shell:
 
 ```bash
 # Auto-detect shell
@@ -213,9 +211,7 @@ Installs shell completion for your current shell or a specified shell:
 ./image-composer install-completion --force
 ```
 
-Reload your shell configuration:
-Depending on which shell you're using:
-
+Reload your shell configuration based on the shell that you are using:
 Bash:
 
 ```bash
@@ -229,6 +225,7 @@ source ~/.zshrc
 ```
 
 Fish: (Nothing needed, it should work immediately)
+
 PowerShell:
 
 ```powershell
@@ -247,7 +244,7 @@ See the [Shell Completion](#shell-completion) section for more details.
 
 ### Image Template Format
 
-Image templates are written in YAML format and define the requirements for building a specific OS image. The template structure allows users to define key parameters such as the operating system distribution, version, architecture, software packages, output format, and kernel configuration.
+Image templates are written in the YAML format and define the requirements for building a specific OS image. The template structure allows users to define key parameters such as the OS distribution, version, architecture, software packages, output format, and kernel configuration.
 
 ```yaml
 image:
@@ -290,10 +287,10 @@ systemConfigs:
 ##### 2. `target`
 
 **Description:** Defines the target OS and image configuration.
-- `os`: Target operating system (`azure-linux`, `emt`, `elxr`)
-- `dist`: Distribution identifier (`azl3`, `emt3`, `elxr12`)
-- `arch`: Target architecture (`x86_64`, `aarch64`)
-- `imageType`: Output format (`raw`, `iso`, `img`, `vhd`)
+- `os`: Target OS (`azure-linux`, `emt`, and `elxr`)
+- `dist`: Distribution identifier (`azl3`, `emt3`, and `elxr12`)
+- `arch`: Target architecture (`x86_64`and `aarch64`)
+- `imageType`: Output format (`raw`, `iso`, `img`, and `vhd`)
 
 ##### 3. `systemConfigs`
 
@@ -314,9 +311,9 @@ systemConfigs:
 #### Package Examples
 
 Common packages that can be included:
-- `cloud-init`: Used for initializing cloud instances
+- `cloud-init`: For initializing cloud instances
 - `python3`: The Python 3 programming language interpreter
-- `rsyslog`: A logging system for Linux
+- `rsyslog`: A logging system for Linux OS
 - `openssh-server`: SSH server for remote access
 - `docker-ce`: Docker container runtime
 
@@ -324,7 +321,8 @@ The image template format is validated against a JSON schema to ensure correctne
 
 ### Legacy JSON Format
 
-**Note:** The tool previously supported JSON build specifications but now exclusively uses YAML image templates. The JSON format has been removed to simplify the architecture and improve maintainability.
+[!NOTE] 
+The tool previously supported JSON build specifications but now exclusively uses YAML image templates. The JSON format has been removed to simplify the architecture and improve maintainability.
 
 For reference, the old JSON format looked like this:
 
@@ -342,11 +340,11 @@ For reference, the old JSON format looked like this:
 
 This has been replaced with the more flexible and intuitive YAML template format shown above.
 
-### Shell Completion
+### Shell Completion Feature
 
-The image-composer CLI supports shell auto-completion for Bash, Zsh, Fish, and PowerShell. This feature helps users discover and use commands and flags more efficiently.
+The image-composer CLI supports shell auto-completion for Bash, Zsh, Fish, and PowerShell command-line shells. This feature helps users discover and use commands and flags more efficiently.
 
-#### Generating Completion Scripts
+#### Generate Completion Scripts
 
 ```bash
 # Bash
@@ -362,7 +360,7 @@ The image-composer CLI supports shell auto-completion for Bash, Zsh, Fish, and P
 ./image-composer completion powershell > image-composer_completion.ps1
 ```
 
-#### Installing Completion Scripts
+#### Install Completion Scripts
 
 **Bash**:
 
@@ -398,11 +396,11 @@ cp image-composer_completion.fish ~/.config/fish/completions/image-composer.fish
 echo ". /path/to/image-composer_completion.ps1" >> $PROFILE
 ```
 
-After installing, you can use tab completion to navigate commands, flags, and arguments when using the image-composer tool.
+After installing, you can use tab completion to navigate commands, flags, and arguments when using the ICT.
 
-#### Examples of Completion in Action
+#### Examples of Completion Script in Action
 
-Once completion is installed:
+Once the completion script is installed:
 
 ```bash
 # Tab-complete commands
@@ -501,13 +499,13 @@ systemConfigs:
       cmdline: "quiet splash systemd.unified_cgroup_hierarchy=0"
 ```
 
-## Getting Help
+## Get Help
 
 - **Quick Reference**: Run `./image-composer --help` to see all available commands and options
 - **Complete Guide**: See the [CLI Specification](./docs/architecture/image-composer-cli-specification.md) for detailed documentation
 - **Examples**: Check the [template examples](#template-examples) section below
 - **Troubleshooting**: Refer to the [Build Process documentation](./docs/architecture/image-composer-build-process.md#troubleshooting-build-issues)
 
-## Contributing
+## Contribute
 
 ## License Information
