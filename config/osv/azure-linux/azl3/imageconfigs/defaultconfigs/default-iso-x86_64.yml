@@ -29,7 +29,7 @@ disk:
       fsType: ext4
       mountPoint: /
 
-systemConfigs: # Required
+systemConfig: # Required
   name: Default_ISO
   description: Default yml configuration for iso image
 
