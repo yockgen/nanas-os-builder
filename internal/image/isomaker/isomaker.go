@@ -46,7 +46,13 @@ func BuildISOImage(template *config.ImageTemplate) error {
 	imageName := template.GetImageName()
 	sysConfigName := template.GetSystemConfigName()
 	isoFilePath := filepath.Join(ImageBuildDir, sysConfigName, fmt.Sprintf("%s.iso", imageName))
-	initrdFilePath := filepath.Join(ImageBuildDir, sysConfigName, "iso-initrd.img")
+	initrdFileDir := filepath.Join(ImageBuildDir, sysConfigName)
+	if _, err := os.Stat(initrdFileDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(initrdFileDir, 0755); err != nil {
+			return fmt.Errorf("failed to create initrd file directory: %w", err)
+		}
+	}
+	initrdFilePath := filepath.Join(initrdFileDir, "iso-initrd.img")
 
 	log.Infof("Creating ISO Initrd image...")
 	initrdRootfsPath, err := buildISOInitrd(initrdFilePath)
