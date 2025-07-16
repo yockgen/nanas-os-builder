@@ -68,6 +68,7 @@ echo "Building the Linux image..."
 
 output=$(sudo bash -c './image-composer build config/osv/azure-linux/azl3/imageconfigs/defaultconfigs/default-raw-x86_64.yml 2>&1')
 # Check for the success message in the output
+echo "$output"
 
 if echo "$output" | grep -q "image build completed successfully"; then
   echo "Image build passed. Proceeding to QEMU boot test..."
