@@ -288,3 +288,63 @@ func TestDiskAndSystemConfigGetters(t *testing.T) {
 		t.Errorf("expected bootloader provider 'grub2', got %s", bootloaderConfig.Provider)
 	}
 }
+
+func TestLoadYAMLTemplateWithImmutability(t *testing.T) {
+	// Create a temporary YAML file with immutability configuration
+	yamlContent := `image:
+  name: azl3-x86_64-edge
+  version: "1.0.0"
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+immutability:
+  enabled: true
+
+systemConfig:
+  name: edge
+  description: Default yml configuration for edge image
+  packages:
+    - openssh-server
+    - docker-ce
+  kernel:
+    version: "6.12"
+    cmdline: "quiet splash"
+`
+
+	tmpFile, err := os.CreateTemp("", "test-*.yml")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(yamlContent); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Test loading
+	template, err := LoadTemplate(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("failed to load YAML template: %v", err)
+	}
+
+	// Verify immutability configuration
+	if !template.IsImmutabilityEnabled() {
+		t.Errorf("expected immutability to be enabled, got %t", template.IsImmutabilityEnabled())
+	}
+}
+
+func TestMergeImmutabilityConfig(t *testing.T) {
+	defaultConfig := ImmutabilityConfig{Enabled: true}
+	userConfig := ImmutabilityConfig{Enabled: false}
+
+	merged := mergeImmutabilityConfig(defaultConfig, userConfig)
+
+	if merged.Enabled != false {
+		t.Errorf("expected merged immutability to be false (user override), got %t", merged.Enabled)
+	}
+}
