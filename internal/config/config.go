@@ -55,11 +55,11 @@ type ImmutabilityConfig struct {
 
 // SystemConfig represents a system configuration within the template
 type SystemConfig struct {
-	Name         string             `yaml:"name"`
-	Description  string             `yaml:"description"`
-	Immutability ImmutabilityConfig `yaml:"immutability,omitempty"`
-	Bootloader   Bootloader         `yaml:"bootloader"`
-	Packages     []string           `yaml:"packages"`
+	Name            string               `yaml:"name"`
+	Description     string               `yaml:"description"`
+	Immutability    ImmutabilityConfig   `yaml:"immutability,omitempty"`
+	Bootloader      Bootloader           `yaml:"bootloader"`
+	Packages        []string             `yaml:"packages"`
 	AdditionalFiles []AdditionalFileInfo `yaml:"additionalFiles"`
 	Kernel          KernelConfig         `yaml:"kernel"`
 }
@@ -70,7 +70,8 @@ type AdditionalFileInfo struct {
 	Final string `yaml:"final"` // path where the file should be placed in the image
 }
 
-// KernelConfig holds the kernel configuratioernenfig struct {
+// KernelConfig holds the kernel configuration
+type KernelConfig struct {
 	Version string `yaml:"version"`
 	Cmdline string `yaml:"cmdline"`
 }
