@@ -16,14 +16,15 @@ run_qemu_boot_test() {
   echo "Booting image: $IMAGE "
   # Search under the directory and copy the file to /tmp
   rm -f $COPY_IMAGE
+  # Find image path
   FOUND_PATH=$(find . -type f -name "$IMAGE" | head -n 1)
-
+  
   if [ -n "$FOUND_PATH" ]; then
-    echo "Found image file at: $FOUND_PATH"
-    cp "$FOUND_PATH" /tmp/
-    echo "Copied to /tmp successfully!"
+    echo "Found image at: $FOUND_PATH"   
+    IMAGE_DIR=$(dirname "$FOUND_PATH")  # Extract directory path where image resides   
+    cd "$IMAGE_DIR"  # Change to that directory
   else
-    echo "Image file not found in directory tree."
+    echo "Image file not found!"
     exit 1
   fi
 
@@ -60,8 +61,10 @@ run_qemu_boot_test() {
       else
         echo "Boot failed or timed out"
         result=1
-      fi     
+      fi   
+      cd "$ORIGINAL_DIR"
       exit $result
+       
 }
 
 git branch
