@@ -43,6 +43,7 @@ run_qemu_boot_test() {
       > "'$LOGFILE'" 2>&1 &
 
     qemu_pid=$!
+    cd "$ORIGINAL_DIR"
     echo "QEMU launched as root with PID $qemu_pid"
 
     # Wait for SUCCESS_STRING or timeout
@@ -63,7 +64,7 @@ run_qemu_boot_test() {
         echo "Boot failed or timed out"
         result=1
       fi   
-      cd "$ORIGINAL_DIR"
+     
       exit $result
        
 }
