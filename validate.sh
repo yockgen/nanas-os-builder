@@ -11,6 +11,7 @@ run_qemu_boot_test() {
   LOGFILE="qemu_serial.log"
   ORIGINAL_IMAGE="azl3-default-x86_64.raw"
   COPY_IMAGE="/tmp/azl3-default-x86_64.raw"
+  touch '$LOGFILE' && chmod 666 '$LOGFILE'
 
 
   echo "Booting image: $IMAGE "
@@ -28,7 +29,7 @@ run_qemu_boot_test() {
     exit 1
   fi
 
-  sudo bash -c "touch '$LOGFILE' && chmod 666 '$LOGFILE'"
+  
 
   nohup qemu-system-x86_64 \
       -m 2048 \
