@@ -13,6 +13,11 @@ jobs:
     steps:
       - name: Install QEMU
         run: sudo apt-get install -y qemu-system-x86 ovmf
+      - name: Show /usr/share folder structure
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tree
+          tree /usr/share/ -L 4
 
       - name: Checkout PR code
         uses: actions/checkout@v4
