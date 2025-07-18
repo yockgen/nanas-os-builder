@@ -2,21 +2,29 @@ name: PR Tester
 
 on:
   pull_request:
+    types: [opened, reopened, synchronize]
     branches:
       - main
-
 jobs:
-  build-test:
+  test-prs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install QEMU
+        run: sudo apt-get install -y qemu-system-x86 ovmf
+      - name: Show /usr/share folder structure
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tree
+          tree /usr/share/ -L 4
+
       - name: Checkout PR code
         uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.24'
 
       - name: Copy tester script
         run: |
