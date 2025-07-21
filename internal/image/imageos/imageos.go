@@ -481,7 +481,7 @@ func buildImageUKI(installRoot string, template *config.ImageTemplate) error {
 
 		log.Debugf("Kernel version:%s", kernelVersion)
 
-		if err := updateInitramfs(installRoot, kernelVersion); err != nil {
+		if err := updateInitramfs(installRoot, kernelVersion, template); err != nil {
 			return fmt.Errorf("failed to update initramfs: %w", err)
 		}
 
@@ -502,7 +502,7 @@ func buildImageUKI(installRoot string, template *config.ImageTemplate) error {
 		log.Debugf("UKI Path:", outputPath)
 
 		cmdlineFile := filepath.Join("/boot", "cmdline.conf")
-		if err := buildUKI(installRoot, kernelPath, initrdPath, cmdlineFile, outputPath); err != nil {
+		if err := buildUKI(installRoot, kernelPath, initrdPath, cmdlineFile, outputPath, template); err != nil {
 			return fmt.Errorf("failed to build UKI: %w", err)
 		}
 		log.Debugf("UKI created successfully on:", outputPath)
@@ -538,8 +538,17 @@ func getKernelVersion(installRoot string) (string, error) {
 }
 
 // Helper to update initramfs for the given kernel version
-func updateInitramfs(installRoot, kernelVersion string) error {
+func updateInitramfs(installRoot, kernelVersion string, template *config.ImageTemplate) error {
 	initrdPath := fmt.Sprintf("/boot/initramfs-%s.img", kernelVersion)
+	if template.IsImmutabilityEnabled() {
+		cmd := fmt.Sprintf(
+			"dracut --force --add systemd-veritysetup --no-hostonly --verbose --kver %s %s",
+			kernelVersion,
+			initrdPath,
+		)
+		_, err := shell.ExecCmd(cmd, true, installRoot, nil)
+		return err
+	}
 	// Check if the initrdPath file exists; if not, create it
 	fullInitrdPath := filepath.Join(installRoot, initrdPath)
 	if _, err := os.Stat(fullInitrdPath); err == nil {
@@ -577,18 +586,150 @@ func prepareESPDir(installRoot string) (string, error) {
 	return espDirs[0], nil
 }
 
+func extractRootHashPH(input string) string {
+	parts := strings.Fields(input)
+	for _, part := range parts {
+		if strings.HasPrefix(part, "roothash=") {
+			val := strings.TrimPrefix(part, "roothash=")
+			val = strings.ReplaceAll(val, "-", " ")
+			return val
+		}
+	}
+	return ""
+}
+
+func replaceRootHashPH(input, newRootHash string) string {
+	parts := strings.Fields(input)
+	for i, part := range parts {
+		if strings.HasPrefix(part, "roothash=") {
+			parts[i] = "roothash=" + newRootHash
+			break
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+func prepareVeritySetup(partPair, installRoot string) error {
+	// Extract the first part of partPair (before the space)
+	parts := strings.Fields(partPair)
+	if len(parts) < 1 {
+		return fmt.Errorf("invalid partPair: %s", partPair)
+	}
+	device := parts[0]
+
+	// Remount the device as read-only
+	remountCmd := fmt.Sprintf("mount -o remount,ro %s", device)
+	log := logger.Logger()
+	log.Debugf("Remounting device as read-only: %s", remountCmd)
+	if _, err := shell.ExecCmd(remountCmd, true, installRoot, nil); err != nil {
+		return fmt.Errorf("failed to remount %s as read-only: %w", device, err)
+	}
+
+	// Create and mount /tmp for ukify (Python tempfile needs this)
+	tmpDir := filepath.Join(installRoot, "tmp")
+	if err := os.MkdirAll(tmpDir, 0777); err != nil {
+		return fmt.Errorf("failed to create /tmp directory: %w", err)
+	}
+	if _, err := shell.ExecCmd("mount -t tmpfs tmpfs /tmp", true, installRoot, nil); err != nil {
+		return fmt.Errorf("failed to mount tmpfs on /tmp: %w", err)
+	}
+	if _, err := shell.ExecCmd("chmod 1777 /tmp", true, installRoot, nil); err != nil {
+		return fmt.Errorf("failed to chmod 1777 on /tmp: %w", err)
+	}
+
+	// Create and mount /boot/efi/tmp for veritysetup
+	veritytmpDir := filepath.Join(installRoot, "boot/efi/tmp")
+	if err := os.MkdirAll(veritytmpDir, 0777); err != nil {
+		return fmt.Errorf("failed to create /boot/efi/tmp directory: %w", err)
+	}
+	if _, err := shell.ExecCmd("mount -t tmpfs tmpfs /boot/efi/tmp", true, installRoot, nil); err != nil {
+		return fmt.Errorf("failed to mount tmpfs on /boot/efi/tmp: %w", err)
+	}
+	if _, err := shell.ExecCmd("chmod 1777 /boot/efi/tmp", true, installRoot, nil); err != nil {
+		return fmt.Errorf("failed to chmod 1777 on /boot/efi/tmp: %w", err)
+	}
+	return nil
+}
+
+func removeVerityTmp(installRoot string) {
+	log := logger.Logger()
+
+	// Unmount and clean up /tmp
+	tmpDir := filepath.Join(installRoot, "tmp")
+	if _, err := shell.ExecCmd("umount /tmp", true, installRoot, nil); err != nil {
+		log.Warnf("Failed to unmount tmpfs on /tmp: %v", err)
+	}
+	if err := os.RemoveAll(tmpDir); err != nil {
+		log.Warnf("Failed to remove tmp directory %s: %v", tmpDir, err)
+	}
+
+	// Unmount and clean up /boot/efi/tmp
+	veritytmpDir := filepath.Join(installRoot, "boot/efi/tmp")
+	if _, err := shell.ExecCmd("umount /boot/efi/tmp", true, installRoot, nil); err != nil {
+		log.Warnf("Failed to unmount tmpfs on /boot/efi/tmp: %v", err)
+	}
+	if err := os.RemoveAll(veritytmpDir); err != nil {
+		log.Warnf("Failed to remove tmp directory %s: %v", veritytmpDir, err)
+	}
+}
+
+func getVerityRootHash(partPair, installRoot string) (string, error) {
+	log := logger.Logger()
+	cmd := fmt.Sprintf(`veritysetup format %s`, partPair)
+	log.Debugf("Veritysetup Executing command:", cmd)
+	output, err := shell.ExecCmd(cmd, true, installRoot, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to run veritysetup format: %w", err)
+	}
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Root hash:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 3 {
+				return fields[2], nil
+			}
+		}
+	}
+	return "", fmt.Errorf("root hash not found in veritysetup output")
+}
+
 // Helper to build UKI using ukify
-func buildUKI(installRoot, kernelPath, initrdPath, cmdlineFile, outputPath string) error {
+func buildUKI(installRoot, kernelPath, initrdPath, cmdlineFile, outputPath string, template *config.ImageTemplate) error {
+	data, err := os.ReadFile(filepath.Join(installRoot, cmdlineFile))
+	if err != nil {
+		return fmt.Errorf("failed to read cmdline file: %w", err)
+	}
+	cmdlineStr := string(data)
+	if template.IsImmutabilityEnabled() {
+		partData := extractRootHashPH(cmdlineStr)
+		err := prepareVeritySetup(partData, installRoot)
+		if err != nil {
+			return fmt.Errorf("failed to get root hash part: %w", err)
+		}
+		rootHashR, err := getVerityRootHash(partData, installRoot)
+		if err != nil {
+			return fmt.Errorf("failed to get verity root hash: %w", err)
+		}
+		cmdlineStr = replaceRootHashPH(cmdlineStr, rootHashR)
+	}
+
 	cmd := fmt.Sprintf(
-		"ukify build --linux \"%s\" --initrd \"%s\" --cmdline \"@%s\" --output \"%s\"",
+		"ukify build --linux \"%s\" --initrd \"%s\" --cmdline \"%s\" --output \"%s\"",
 		kernelPath,
 		initrdPath,
-		cmdlineFile,
+		cmdlineStr,
 		outputPath,
 	)
 	log := logger.Logger()
 	log.Debugf("UKI Executing command:", cmd)
-	_, err := shell.ExecCmd(cmd, true, installRoot, nil)
+	if template.IsImmutabilityEnabled() {
+		// Set TMPDIR environment variable to use the mounted tmpfs
+		envVars := []string{"TMPDIR=/tmp"}
+		_, err = shell.ExecCmd(cmd, true, installRoot, envVars)
+		removeVerityTmp(installRoot)
+	} else {
+		_, err = shell.ExecCmd(cmd, true, installRoot, nil)
+	}
 	return err
 }
 

@@ -95,7 +95,7 @@ func updateGrubConfig(installRoot string) error {
 	return nil
 }
 
-func updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix string, template *config.ImageTemplate) error {
+func updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, hashDevID, rootHashPH string, template *config.ImageTemplate) error {
 	log := logger.Logger()
 	log.Infof("Updating boot configurations")
 
@@ -132,8 +132,31 @@ func updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix strin
 		return fmt.Errorf("failed to replace BootPrefix in boot configuration: %w", err)
 	}
 
-	if err := file.ReplacePlaceholdersInFile("{{.RootPartition}}", rootDevID, configFinalPath); err != nil {
-		return fmt.Errorf("failed to replace RootPartition in boot configuration: %w", err)
+	if template.IsImmutabilityEnabled() {
+		if err := file.ReplacePlaceholdersInFile("{{.RootPartition}}", "/dev/mapper/root", configFinalPath); err != nil {
+			return fmt.Errorf("failed to replace RootPartition in boot configuration: %w", err)
+		}
+		// Construct systemd verity command line if hashDevID is provided
+		verityCmd := ""
+		if hashDevID != "" {
+			verityCmd = fmt.Sprintf("systemd.verity_name=root systemd.verity_root_data=%s systemd.verity_root_hash=%s", rootDevID, hashDevID)
+		}
+		if err := file.ReplacePlaceholdersInFile("{{.SystemdVerity}}", verityCmd, configFinalPath); err != nil {
+			return fmt.Errorf("failed to replace dm verity arg in boot configuration: %w", err)
+		}
+		if err := file.ReplacePlaceholdersInFile("{{.RootHash}}", rootHashPH, configFinalPath); err != nil {
+			return fmt.Errorf("failed to replace dm verity roothash in boot configuration: %w", err)
+		}
+	} else {
+		if err := file.ReplacePlaceholdersInFile("{{.RootPartition}}", rootDevID, configFinalPath); err != nil {
+			return fmt.Errorf("failed to replace RootPartition in boot configuration: %w", err)
+		}
+		if err := file.ReplacePlaceholdersInFile("{{.SystemdVerity}}", "", configFinalPath); err != nil {
+			return fmt.Errorf("failed to replace dm verity arg in boot configuration: %w", err)
+		}
+		if err := file.ReplacePlaceholdersInFile("{{.RootHash}}", "", configFinalPath); err != nil {
+			return fmt.Errorf("failed to replace dm verity roothash in boot configuration: %w", err)
+		}
 	}
 
 	// For now, we do not support LUKS encryption, so we replace the LuksUUID placeholder with an empty string.
@@ -187,6 +210,7 @@ func InstallImageBoot(installRoot string, diskPathIdMap map[string]string, templ
 	var bootUUID string
 	var bootPrefix string = ""
 	var rootDev string
+	var hashDev string
 	var err error
 
 	log := logger.Logger()
@@ -235,7 +259,7 @@ func InstallImageBoot(installRoot string, diskPathIdMap map[string]string, templ
 			}
 		}
 
-		if err := updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, template); err != nil {
+		if err := updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, "", "", template); err != nil {
 			return fmt.Errorf("failed to update boot configuration: %w", err)
 		}
 
@@ -250,8 +274,25 @@ func InstallImageBoot(installRoot string, diskPathIdMap map[string]string, templ
 	case "systemd-boot":
 		log.Infof("Installing systemd-boot bootloader")
 		if bootloaderConfig.BootType == "efi" {
-			if err := updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, template); err != nil {
-				return fmt.Errorf("failed to update boot configuration: %w", err)
+
+			if template.IsImmutabilityEnabled() {
+				hashDev = getDiskPartDevByMountPoint("none", diskPathIdMap, template)
+				if hashDev == "" {
+					return fmt.Errorf("failed to find dm verity hash partition")
+				}
+				hashPartUUID, err := imagedisc.GetPartUUID(hashDev)
+				if err != nil {
+					return fmt.Errorf("failed to get partition UUID for dm verity hash partition %s: %w", rootDev, err)
+				}
+				hashDevID := fmt.Sprintf("PARTUUID=%s", hashPartUUID)
+				rootHashPH := fmt.Sprintf("roothash=%s-%s", rootDev, hashDev)
+				if err := updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, hashDevID, rootHashPH, template); err != nil {
+					return fmt.Errorf("failed to update boot configuration: %w", err)
+				}
+			} else {
+				if err := updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, "", "", template); err != nil {
+					return fmt.Errorf("failed to update boot configuration: %w", err)
+				}
 			}
 		} else {
 			return fmt.Errorf("systemd-boot is only supported in EFI mode")
