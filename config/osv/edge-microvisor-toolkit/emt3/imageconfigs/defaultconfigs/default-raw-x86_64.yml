@@ -129,9 +129,6 @@ systemConfig:
     - docker-cli
     - docker-compose
 
-    # k3s
-    - k3s
-
   additionalFiles:
     - local: layout.env
       final: /etc/layout.env
