@@ -41,6 +41,8 @@ For complete usage instructions, see the [CLI Specification](./docs/architecture
 
 Image Composer Tool is developed in the Go programming language (or `golang`) and requires golang version 1.22.12 and above. See installation instructions for a specific distribution [here](https://go.dev/doc/manage-install).
 
+> **Note:** Before building, check out [docs/tutorial/Pre-requisite](./docs/tutorial/Pre-requisite.md) for instructions to install required binaries.
+
 ### Build
 
 Build the image-composer using Go directly:
