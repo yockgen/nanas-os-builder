@@ -76,7 +76,7 @@
                     },
                     "then": {
                         "properties": {
-                            "dist": { "enum": ["elxr23"] }
+                            "dist": { "enum": ["elxr12", "elxr23"] }
                         }
                     }
                 }
