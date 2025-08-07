@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "os-image-template.schema.json",
     "title": "OS Image Template",
-    "description": "Defines image configuration including target OS, packages, kernel, and system configurations",
+    "description": "Defines image configuration with defaults applied including target OS, packages, kernel, and system configurations",
     "type": "object",
     "properties": {
         "image": {
@@ -76,7 +76,7 @@
                     },
                     "then": {
                         "properties": {
-                            "dist": { "enum": ["elxr12", "elxr23"] }
+                            "dist": { "enum": ["elxr23"] }
                         }
                     }
                 }
@@ -84,7 +84,7 @@
         },
         "disk": {
             "type": "object",
-            "description": "Disk configuration (optional, uses defaults if omitted)",
+            "description": "Disk configuration",
             "properties": {
                 "name": {
                     "type": "string",
@@ -170,6 +170,7 @@
                     }
                 }
             },
+            "required": ["name"],
             "additionalProperties": false
         },
         "systemConfig": {
@@ -186,12 +187,12 @@
                 },
                 "immutability": {
                     "type": "object",
-                    "description": "Immutability configuration (optional)",
+                    "description": "Immutability configuration",
                     "additionalProperties": true
                 },
                 "users": {
                     "type": "array",
-                    "description": "User configurations (optional)",
+                    "description": "User configurations",
                     "items": {
                         "type": "object",
                         "properties": {
@@ -277,6 +278,10 @@
                     "type": "object",
                     "description": "Kernel configuration",
                     "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Kernel package name (from defaults)"
+                        },
                         "version": {
                             "type": "string",
                             "description": "Kernel version"
@@ -284,15 +289,20 @@
                         "cmdline": {
                             "type": "string",
                             "description": "Kernel command line parameters"
+                        },
+                        "uki": {
+                            "type": "boolean",
+                            "description": "Enable Unified Kernel Image (from defaults)"
                         }
                     },
                     "required": ["version"],
                     "additionalProperties": false
                 }
             },
+            "required": ["name", "packages", "kernel"],
             "additionalProperties": false
         }
     },
-    "required": ["image", "target"],
+    "required": ["image", "target", "systemConfig"],
     "additionalProperties": false
 }

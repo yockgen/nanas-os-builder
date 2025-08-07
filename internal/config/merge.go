@@ -328,8 +328,10 @@ func mergePackages(defaultPackages, userPackages []string) []string {
 }
 
 // mergeKernelConfig merges kernel configurations
+// Note: User KernelConfig only has Version and Cmdline, but merged config
+// can include additional fields (name, uki) from defaults
 func mergeKernelConfig(defaultKernel, userKernel KernelConfig) KernelConfig {
-	merged := defaultKernel // Start with default
+	merged := defaultKernel // Start with default (may include name, uki)
 
 	// Override with user values where provided
 	if userKernel.Version != "" {
@@ -338,6 +340,7 @@ func mergeKernelConfig(defaultKernel, userKernel KernelConfig) KernelConfig {
 	if userKernel.Cmdline != "" {
 		merged.Cmdline = userKernel.Cmdline
 	}
+	// Note: name and uki fields come from defaults and are preserved
 
 	return merged
 }

@@ -1,6 +1,6 @@
 image:
   name: complete-test-image
-  version: "2.0.0"
+  version: "1.0.0"
 
 target:
   os: azure-linux
@@ -8,13 +8,47 @@ target:
   arch: x86_64
   imageType: raw
 
-systemConfigs:
-  - name: complete
-    packages:
-      - openssh-server
-      - curl
-      - vim
-      - git
-    kernel:
-      version: "6.12"
-      cmdline: "quiet splash"
+disk:
+  name: Complete
+  size: 8GiB
+  partitionTableType: gpt
+  partitions:
+    - id: boot
+      type: esp
+      flags:
+        - esp
+        - boot
+      start: 1MiB
+      end: 513MiB
+      fsType: fat32
+      mountPoint: /boot/efi
+    - id: rootfs
+      type: linux-root-amd64
+      start: 513MiB
+      end: "0"
+      fsType: ext4
+      mountPoint: /
+
+systemConfig:  # Changed from systemConfigs
+  name: complete
+  description: Complete test configuration
+  users:
+    - name: testuser
+      password: testpass123
+      hash_algo: sha512
+      groups:
+        - users
+        - sudo
+      sudo: true
+      home: /home/testuser
+      shell: /bin/bash
+  packages:
+    - openssh-server
+    - curl
+    - wget
+    - vim
+  kernel:
+    name: kernel
+    version: "6.6"
+    cmdline: "console=ttyS0,115200 console=tty0 loglevel=7"
+    uki: true
