@@ -47,7 +47,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEWER_ID: srmungar
         run: |
-          PR_AUTHOR=$(jq --raw-output .pull_request.user.login "$GITHUB_EVENT_PATH")
+          PR_AUTHOR=$(jq --raw-output 'try .pull_request.user.login // empty' "$GITHUB_EVENT_PATH")
+          if [ -z "$PR_AUTHOR" ]; then
+            echo "PR_AUTHOR not found in event payload. Skipping notification."
+            exit 0
+          fi
           COMMENT_BODY="Hey @$PR_AUTHOR and @$REVIEWER_ID — the build and tests for this PR have failed. Please check the logs."
           curl -s -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
