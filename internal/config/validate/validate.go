@@ -31,15 +31,15 @@ func ValidateAgainstSchema(name string, schemaBytes, data []byte, ref string) er
 	if ref != "" {
 		switch {
 		case strings.HasPrefix(ref, "#"):
-			target += ref
+			target = name + ref
 		case strings.HasPrefix(ref, "/"):
-			target += "#" + ref
+			target = name + "#" + ref
 		default:
-			target += "#" + ref
+			// treat as anchor name (e.g., "UserTemplate")
+			target = name + "#" + ref
 		}
 	}
-
-	sch, err := comp.Compile(name)
+	sch, err := comp.Compile(target)
 	if err != nil {
 		return fmt.Errorf("compiling schema %q: %w", name, err)
 	}
