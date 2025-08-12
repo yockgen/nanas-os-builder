@@ -170,21 +170,40 @@ func extractSedPattern(command string) (string, error) {
 	// - sed -i '/pattern/c\replacement'
 	// - sed -i '1,10 d'
 	// - sed -i '10 i\text to insert'
-	re := regexp.MustCompile(`(?s)sed\s+(?:-[^\s'"]*)?\s+'(.*?)'`)
-	matches := re.FindStringSubmatch(command)
+
+	// First try single quotes
+	singleRe := regexp.MustCompile(`(?s)sed\s+(?:-[^\s'"]*)?\s+'(.*?)'`)
+	matches := singleRe.FindStringSubmatch(command)
 
 	if len(matches) >= 2 {
 		return matches[1], nil
 	}
 
+	// Then try double quotes
+	doubleRe := regexp.MustCompile(`(?s)sed\s+(?:-[^\s'"]*)?\s+"(.*?)"`)
+	matches = doubleRe.FindStringSubmatch(command)
+	if len(matches) >= 2 {
+		return matches[1], nil
+	}
 	return "", fmt.Errorf("no quoted string found in sed command")
 }
 
 func extractEchoString(command string) (string, error) {
-	// Match strings inside echo with single quotes
-	re := regexp.MustCompile(`(?s)echo\s+(?:-e\s+)?'(.*?)'`)
-	matches := re.FindStringSubmatch(command)
+	// Match strings inside echo with single or double quotes
+	// Note: Ideally, the pattern should be `(?s)echo\s+(?:-e\s+)?(['"])(.*?)\1'`
+	// But the go built-in lib regexp doesn't support this backreferences.
 
+	// First try single quotes
+	singleRe := regexp.MustCompile(`(?s)echo\s+(?:-e\s+)?'(.*?)'`)
+	matches := singleRe.FindStringSubmatch(command)
+
+	if len(matches) >= 2 {
+		return matches[1], nil
+	}
+
+	// Then try double quotes
+	doubleRe := regexp.MustCompile(`echo\s+(?:-e\s+)?"(.*?)"`)
+	matches = doubleRe.FindStringSubmatch(command)
 	if len(matches) >= 2 {
 		return matches[1], nil
 	}
