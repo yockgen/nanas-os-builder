@@ -1,4 +1,4 @@
-name: PR Tester (manual only)
+name: PR Tester
 
 on:
   push:
