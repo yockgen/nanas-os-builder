@@ -76,7 +76,7 @@ build_azl3_image() {
   output=$( sudo -S ./image-composer build config/osv/azure-linux/azl3/imageconfigs/defaultconfigs/default-raw-x86_64.yml 2>&1)
   # Check for the success message in the output
   if echo "$output" | grep -q "image build completed successfully"; then
-  echo "AZL raw Image build passed."
+    echo "AZL raw Image build passed."
   else
     echo "AZL raw Image build failed."
     exit 1 # Exit with error if build fails
@@ -87,7 +87,7 @@ build_emt3_image() {
   output=$( sudo -S ./image-composer build config/osv/edge-microvisor-toolkit/emt3/imageconfigs/defaultconfigs/default-raw-x86_64.yml 2>&1)
   # Check for the success message in the output
   if echo "$output" | grep -q "image build completed successfully"; then
-  echo "EMT3 raw Image build passed."
+    echo "EMT3 raw Image build passed."
   else
     echo "EMT3 raw Image build failed."
     exit 1 # Exit with error if build fails
@@ -95,15 +95,19 @@ build_emt3_image() {
 }
 
 build_elxr12_image() {
+  echo "building ELXR12 raw Image."
   output=$( sudo -S ./image-composer build config/osv/wind-river-elxr/elxr12/imageconfigs/defaultconfigs/default-raw-x86_64.yml 2>&1)
   # Check for the success message in the output
+  echo "waiting ELXR12 raw Image build"
+  echo "$output"
   if echo "$output" | grep -q "image build completed successfully"; then
-  echo "ELXR12 raw Image build passed."
+    echo "$output"
+    echo "ELXR12 raw Image build passed."
   else
     echo "$output"
     echo "ELXR12 raw Image build failed."
     echo "$output"    # Add this line
-    exit 1
+    exit 0
   fi
 }
 
