@@ -146,12 +146,27 @@ build_elxr12_iso_image() {
   fi
 }
 
-# Call the build functions
+clean_build_dirs() {
+  echo "Cleaning build directories: cache/ and tmp/"
+  sudo rm -rf cache/ tmp/
+}
+
+# Call the build functions with cleaning before each except the first one
 build_azl3_raw_image
+
+clean_build_dirs
 build_azl3_iso_image
+
+clean_build_dirs
 build_emt3_raw_image
+
+clean_build_dirs
 build_emt3_iso_image
+
+clean_build_dirs
 build_elxr12_raw_image
+
+clean_build_dirs
 build_elxr12_iso_image
 
 # # Check for the success message in the output
