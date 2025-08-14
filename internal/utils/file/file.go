@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/open-edge-platform/image-composer/internal/config"
 	"github.com/open-edge-platform/image-composer/internal/utils/shell"
 	"gopkg.in/yaml.v3"
 )
@@ -35,40 +36,6 @@ func IsSubPath(base, target string) (bool, error) {
 	return true, nil
 }
 
-// GetRootPath returns the root path of the application
-func GetRootPath() (string, error) {
-
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current working directory: %w", err)
-	}
-	return dir, nil
-}
-
-func GetGeneralConfigDir() (string, error) {
-	rootPath, err := GetRootPath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get root path: %w", err)
-	}
-	configDir := filepath.Join(rootPath, "config", "general")
-	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		return "", fmt.Errorf("general config directory does not exist: %s", configDir)
-	}
-	return configDir, nil
-}
-
-func GetTargetOsConfigDir(targetOs, targetDist string) (string, error) {
-	rootPath, err := GetRootPath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get root path: %w", err)
-	}
-	configDir := filepath.Join(rootPath, "config", "osv", targetOs, targetDist)
-	if _, err := os.Stat(configDir); os.IsNotExist(err) {
-		return "", fmt.Errorf("target OS config directory does not exist: %s", configDir)
-	}
-	return configDir, nil
-}
-
 func ReplacePlaceholdersInFile(placeholder, value, filePath string) error {
 	sedCmd := fmt.Sprintf("sed -i 's|%s|%s|g' %s", placeholder, value, filePath)
 	if _, err := shell.ExecCmd(sedCmd, true, "", nil); err != nil {
@@ -77,16 +44,69 @@ func ReplacePlaceholdersInFile(placeholder, value, filePath string) error {
 	return nil
 }
 
-// Append appends a string to the end of file dst.
-func Append(data string, dst string) error {
-	dstFile, err := os.OpenFile(dst, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+func GetFileList(dir string) ([]string, error) {
+	var fileList []string
+	output, err := shell.ExecCmd("ls "+dir, true, "", nil)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s for appending: %w", dst, err)
+		return nil, fmt.Errorf("failed to list files in directory %s: %w", dir, err)
 	}
-	defer dstFile.Close()
+	for _, line := range strings.Split(output, "\n") {
+		if line == "" {
+			continue // skip empty lines
+		}
+		filesInLine := strings.Split(line, " ")
+		fileList = append(fileList, filesInLine...)
+	}
+	return fileList, nil
+}
 
-	_, err = dstFile.WriteString(data)
-	return err
+func Read(filePath string) (string, error) {
+	content, err := shell.ExecCmd("cat "+filePath, true, "", nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+	return content, nil
+}
+
+func Write(data, dst string) error {
+	tmpFile, err := os.CreateTemp(config.TempDir(), "filewrite-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath) // Ensure temp file is removed after use
+
+	// Write data to temp file
+	if _, err := tmpFile.WriteString(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+	tmpFile.Close()
+
+	return CopyFile(tmpPath, dst, "", true)
+}
+
+func Append(data, dst string) error {
+	tmpFile, err := os.CreateTemp(config.TempDir(), "fileappend-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath) // Ensure temp file is removed after use
+
+	// Write data to temp file
+	if _, err := tmpFile.WriteString(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write to temporary file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Use a safer approach with shell.ExecCmd that avoids command injection
+	cmdStr := fmt.Sprintf("cat %s | sudo tee -a %s >/dev/null", tmpPath, dst)
+	if _, err := shell.ExecCmd(cmdStr, false, "", nil); err != nil {
+		return fmt.Errorf("failed to append content to %s: %w", dst, err)
+	}
+	return nil
 }
 
 // ReadFromJSON reads a JSON file and returns its contents as a map
@@ -208,7 +228,7 @@ func CopyFile(srcFile, dstFile, flags string, sudo bool) error {
 	}
 	dstDir := filepath.Dir(dstFilePath)
 	if _, err := os.Stat(dstDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(dstDir, 0755); err != nil {
+		if _, err := shell.ExecCmd("mkdir -p "+dstDir, sudo, "", nil); err != nil {
 			return fmt.Errorf("failed to create directory for destination file: %w", err)
 		}
 	}
@@ -238,7 +258,7 @@ func CopyDir(srcDir, dstDir, flags string, sudo bool) error {
 		return fmt.Errorf("failed to get absolute path of destination directory: %w", err)
 	}
 	if _, err := os.Stat(dstDirPath); os.IsNotExist(err) {
-		if err := os.MkdirAll(dstDirPath, 0755); err != nil {
+		if _, err := shell.ExecCmd("mkdir -p "+dstDirPath, sudo, "", nil); err != nil {
 			return fmt.Errorf("failed to create destination directory: %w", err)
 		}
 	}

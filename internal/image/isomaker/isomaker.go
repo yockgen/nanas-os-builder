@@ -92,7 +92,7 @@ func buildISOInitrd(initrdFilePath string) (string, error) {
 }
 
 func getInitrdTemplate() (*config.ImageTemplate, error) {
-	targetOsConfigDir, err := file.GetTargetOsConfigDir(config.TargetOs, config.TargetDist)
+	targetOsConfigDir, err := config.GetTargetOsConfigDir(config.TargetOs, config.TargetDist)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target OS config directory: %v", err)
 	}
@@ -137,7 +137,7 @@ func addInitScriptsToInitrd(initrdRootfsPath string) error {
 	log := logger.Logger()
 	log.Infof("Adding init scripts to initrd...")
 
-	generalConfigDir, err := file.GetGeneralConfigDir()
+	generalConfigDir, err := config.GetGeneralConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get general config directory: %v", err)
 	}
@@ -169,7 +169,7 @@ func createISO(template *config.ImageTemplate, initrdRootfsPath, initrdFilePath,
 	isoLabel := sanitizeIsoLabel(imageName)
 
 	// Get the config file path to the static ISO root files
-	generalConfigDir, err := file.GetGeneralConfigDir()
+	generalConfigDir, err := config.GetGeneralConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get general config directory: %v", err)
 	}
@@ -190,7 +190,7 @@ func createISO(template *config.ImageTemplate, initrdRootfsPath, initrdFilePath,
 	}
 
 	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if _, err := shell.ExecCmd("mkdir -p "+dir, true, "", nil); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
@@ -342,7 +342,7 @@ func createIsolinuxCfg(isoIsolinuxPath, imageName string) error {
 	log := logger.Logger()
 	log.Infof("Creating ISOLINUX configuration...")
 
-	generalConfigDir, err := file.GetGeneralConfigDir()
+	generalConfigDir, err := config.GetGeneralConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get general config directory: %v", err)
 	}
@@ -445,7 +445,7 @@ func createGrubCfg(installRoot, imageName string) error {
 	log := logger.Logger()
 	log.Infof("Creating GRUB configuration for EFI boot...")
 
-	generalConfigDir, err := file.GetGeneralConfigDir()
+	generalConfigDir, err := config.GetGeneralConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get general config directory: %v", err)
 	}
@@ -539,7 +539,6 @@ func createEfiFatImage(isoEfiPath, isoImagesPath string) (string, error) {
 	if err := mount.MountPath(efiFatImgPath, tempMountDir, "-o loop"); err != nil {
 		return "", fmt.Errorf("failed to mount EFI FAT image: %v", err)
 	}
-	defer os.RemoveAll(tempMountDir)
 
 	// Copy the EFI bootloader to the FAT image
 	efiBootDir := filepath.Join(tempMountDir, "EFI", "BOOT")
@@ -559,14 +558,18 @@ func createEfiFatImage(isoEfiPath, isoImagesPath string) (string, error) {
 		return "", fmt.Errorf("failed to unmount temporary mount directory %s: %v", tempMountDir, err)
 	}
 
+	if _, err = shell.ExecCmd("rm -rf "+tempMountDir, true, "", nil); err != nil {
+		return "", fmt.Errorf("failed to remove temporary mount directory %s: %v", tempMountDir, err)
+	}
+
 	return efiFatImgPath, nil
 
 fail:
 	if umountErr := mount.UmountPath(tempMountDir); umountErr != nil {
 		log.Errorf("Failed to unmount temporary mount directory %s: %v", tempMountDir, umountErr)
 	}
-	if err := os.Remove(efiFatImgPath); err != nil {
-		log.Errorf("Failed to remove EFI FAT image %s: %v", efiFatImgPath, err)
+	if _, err := shell.ExecCmd("rm -rf "+tempMountDir, true, "", nil); err != nil {
+		return "", fmt.Errorf("failed to remove temporary mount directory %s: %v", tempMountDir, err)
 	}
 	return "", err
 }

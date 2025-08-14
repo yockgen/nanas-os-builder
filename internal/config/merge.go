@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/open-edge-platform/image-composer/internal/utils/file"
 	"github.com/open-edge-platform/image-composer/internal/utils/logger"
 )
 
@@ -43,7 +42,7 @@ func (d *DefaultConfigLoader) LoadDefaultConfig(imageType string) (*ImageTemplat
 	}
 
 	// Get the target OS config directory
-	targetOsConfigDir, err := file.GetTargetOsConfigDir(d.targetOs, d.targetDist)
+	targetOsConfigDir, err := GetTargetOsConfigDir(d.targetOs, d.targetDist)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target OS config directory: %w", err)
 	}
