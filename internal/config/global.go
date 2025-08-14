@@ -16,10 +16,11 @@ import (
 // GlobalConfig holds essential tool-level configuration parameters
 type GlobalConfig struct {
 	// Core tool settings
-	Workers  int    `yaml:"workers" json:"workers"`     // Number of concurrent download workers (1-100, default: 8)
-	CacheDir string `yaml:"cache_dir" json:"cache_dir"` // Package cache directory where downloaded RPMs/DEBs are stored (default: ./cache)
-	WorkDir  string `yaml:"work_dir" json:"work_dir"`   // Working directory for build operations and image assembly (default: ./workspace)
-	TempDir  string `yaml:"temp_dir" json:"temp_dir"`   // Temporary directory for short-lived files like GPG keys and metadata parsing (empty = system default)
+	Workers   int    `yaml:"workers" json:"workers"`       // Number of concurrent download workers (1-100, default: 8)
+	ConfigDir string `yaml:"config_dir" json:"config_dir"` // Directory for configuration files (default: ./config)
+	CacheDir  string `yaml:"cache_dir" json:"cache_dir"`   // Package cache directory where downloaded RPMs/DEBs are stored (default: ./cache)
+	WorkDir   string `yaml:"work_dir" json:"work_dir"`     // Working directory for build operations and image assembly (default: ./workspace)
+	TempDir   string `yaml:"temp_dir" json:"temp_dir"`     // Temporary directory for short-lived files like GPG keys and metadata parsing (empty = system default)
 
 	// Logging configuration
 	Logging LoggingConfig `yaml:"logging" json:"logging"` // Logging behavior settings
@@ -62,10 +63,11 @@ func Global() *GlobalConfig {
 // DefaultGlobalConfig returns a GlobalConfig with sensible defaults
 func DefaultGlobalConfig() *GlobalConfig {
 	return &GlobalConfig{
-		Workers:  8,
-		CacheDir: "./cache",
-		WorkDir:  "./workspace",
-		TempDir:  "./tmp",
+		Workers:   8,
+		ConfigDir: "./config",
+		CacheDir:  "./cache",
+		WorkDir:   "./workspace",
+		TempDir:   "./tmp",
 
 		Logging: LoggingConfig{
 			Level: "info",
@@ -243,6 +245,10 @@ func VerificationWorkers() int {
 	return workers
 }
 
+func ConfigDir() (string, error) {
+	return filepath.Abs(Global().ConfigDir)
+}
+
 func CacheDir() (string, error) {
 	return filepath.Abs(Global().CacheDir)
 }
@@ -305,4 +311,28 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+func GetGeneralConfigDir() (string, error) {
+	configPath, err := ConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get config path: %w", err)
+	}
+	generalConfigDir := filepath.Join(configPath, "general")
+	if _, err := os.Stat(generalConfigDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("general config directory does not exist: %s", generalConfigDir)
+	}
+	return generalConfigDir, nil
+}
+
+func GetTargetOsConfigDir(targetOs, targetDist string) (string, error) {
+	configPath, err := ConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get config path: %w", err)
+	}
+	targetOsConfigPath := filepath.Join(configPath, "osv", targetOs, targetDist)
+	if _, err := os.Stat(targetOsConfigPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("target OS config directory does not exist: %s", targetOsConfigPath)
+	}
+	return targetOsConfigPath, nil
 }

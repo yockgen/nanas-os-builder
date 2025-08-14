@@ -8,7 +8,11 @@ workers: 12
 # Higher values speed up package downloads but consume more network/CPU resources
 # Recommended: 8-16 for most systems, 20+ for high-bandwidth servers
 
-cache_dir: "./cache/image-composer"   
+config_dir: "./config"
+# Directory containing configuration files for different target OSs (default: ./config)
+# Should contain subdirectories for general and each target OS config files.
+
+cache_dir: "./cache/image-composer"
 # Package cache directory where downloaded RPMs/DEBs are stored (default: ./cache)
 # This directory persists between builds for package reuse
 # Should have sufficient space (typically 1-5GB depending on image size)
@@ -30,6 +34,6 @@ logging:
   level: "debug"
   # Log verbosity level (default: info)
   # - debug: Most verbose, shows all operations and data structures
-  # - info:  Normal output, shows progress and important events  
+  # - info:  Normal output, shows progress and important events
   # - warn:  Only warnings and errors, minimal output
   # - error: Only errors, very quiet operation

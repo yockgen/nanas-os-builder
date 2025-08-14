@@ -35,7 +35,7 @@ func installGrubWithEfiMode(installRoot, bootUUID, bootPrefix string, template *
 	log := logger.Logger()
 	log.Infof("Installing Grub2 bootloader with EFI mode")
 	efiDir := "/boot/efi"
-	configDir, err := file.GetGeneralConfigDir()
+	configDir, err := config.GetGeneralConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get general config directory: %w", err)
 	}
@@ -74,7 +74,7 @@ func installGrubWithEfiMode(installRoot, bootUUID, bootPrefix string, template *
 }
 
 func copyGrubEnvFile(installRoot string) error {
-	configDir, err := file.GetGeneralConfigDir()
+	configDir, err := config.GetGeneralConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get general config directory: %w", err)
 	}
@@ -99,7 +99,7 @@ func updateBootConfigTemplate(installRoot, rootDevID, bootUUID, bootPrefix, hash
 	log := logger.Logger()
 	log.Infof("Updating boot configurations")
 
-	configDir, err := file.GetGeneralConfigDir()
+	configDir, err := config.GetGeneralConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to get general config directory: %w", err)
 	}
