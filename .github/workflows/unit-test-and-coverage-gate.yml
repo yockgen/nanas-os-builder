@@ -63,7 +63,7 @@ jobs:
             HEAD_VAL="${MANUAL_COV}"
           else
             if [[ -f "$FILE" ]]; then
-              HEAD_VAL="$(cat "$FILE" | parse_num)"
+              HEAD_VAL="$(parse_num < "$FILE")"
             fi
           fi
 
