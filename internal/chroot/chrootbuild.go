@@ -18,77 +18,11 @@ import (
 )
 
 var (
-	ChrootBuildDir    string // ChrootBuildDir is the directory where the chroot build.
-	ChrootPkgCacheDir string // ChrootPkgCacheDir is the directory where chroot environment packages are cached.
+	TargetOsConfigDir string                 // targetOsConfigDir is the directory where target OS configuration files are stored.
+	TargetOsConfig    map[string]interface{} // TargetOsConfig holds the configuration for the target OS.
+	ChrootBuildDir    string                 // ChrootBuildDir is the directory where the chroot build.
+	ChrootPkgCacheDir string                 // ChrootPkgCacheDir is the directory where chroot environment packages are cached.
 )
-
-func InitChrootBuildSpace(targetOs string, targetDist string, targetArch string) error {
-	globalWorkDir, err := config.WorkDir()
-	if err != nil {
-		return fmt.Errorf("failed to get global work directory: %v", err)
-	}
-	globalCache, err := config.CacheDir()
-	if err != nil {
-		return fmt.Errorf("failed to get global cache dir: %w", err)
-	}
-	ChrootBuildDir = filepath.Join(globalWorkDir, config.ProviderId, "chrootbuild")
-	ChrootPkgCacheDir = filepath.Join(globalCache, "pkgCache", config.ProviderId)
-
-	return nil
-}
-
-func getChrootEnvConfig(chrootEnvCongfigPath string) (map[interface{}]interface{}, error) {
-	if _, err := os.Stat(chrootEnvCongfigPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("chroot environment config file does not exist: %s", chrootEnvCongfigPath)
-	}
-	return file.ReadFromYaml(chrootEnvCongfigPath)
-}
-
-func GetChrootEnvEssentialPackageList(chrootEnvCongfigPath string) ([]string, error) {
-	pkgList := []string{}
-	chrootEnvConfig, err := getChrootEnvConfig(chrootEnvCongfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read chroot environment config: %v", err)
-	}
-	if pkgListRaw, ok := chrootEnvConfig["essential"]; ok {
-		if pkgListStr, ok := pkgListRaw.([]interface{}); ok {
-			for _, pkg := range pkgListStr {
-				if pkgStr, ok := pkg.(string); ok {
-					pkgList = append(pkgList, pkgStr)
-				} else {
-					return nil, fmt.Errorf("invalid package format in chroot environment config: %v", pkg)
-				}
-			}
-		} else {
-			return nil, fmt.Errorf("essential packages field is not a list in chroot environment config")
-		}
-	}
-	return pkgList, nil
-}
-
-func getChrootEnvPackageList(chrootEnvCongfigPath string) ([]string, error) {
-	pkgList := []string{}
-	chrootEnvConfig, err := getChrootEnvConfig(chrootEnvCongfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read chroot environment config: %v", err)
-	}
-	if pkgListRaw, ok := chrootEnvConfig["packages"]; ok {
-		if pkgListStr, ok := pkgListRaw.([]interface{}); ok {
-			for _, pkg := range pkgListStr {
-				if pkgStr, ok := pkg.(string); ok {
-					pkgList = append(pkgList, pkgStr)
-				} else {
-					return nil, fmt.Errorf("invalid package format in chroot environment config: %v", pkg)
-				}
-			}
-		} else {
-			return nil, fmt.Errorf("packages field is not a list in chroot environment config")
-		}
-	} else {
-		return nil, fmt.Errorf("packages field not found in chroot environment config")
-	}
-	return pkgList, nil
-}
 
 func getHostOsInfo() (map[string]string, error) {
 	log := logger.Logger()
@@ -177,46 +111,130 @@ func GetHostOsPkgManager() (string, error) {
 	}
 }
 
-func GetTaRgetOsPkgType(targetOs string) string {
-	switch targetOs {
-	case "azure-linux":
-		return "rpm"
-	case "edge-microvisor-toolkit":
-		return "rpm"
-	case "wind-river-elxr":
-		return "deb"
-	default:
-		return ""
-	}
-}
-
-func GetChrootConfigDir(targetOs, targetDist string) (string, error) {
-	targetOsConfigDir, err := config.GetTargetOsConfigDir(targetOs, targetDist)
+func InitChrootBuildSpace(targetOs string, targetDist string, targetArch string) error {
+	globalWorkDir, err := config.WorkDir()
 	if err != nil {
-		return "", fmt.Errorf("failed to get target OS config directory: %v", err)
+		return fmt.Errorf("failed to get global work directory: %v", err)
 	}
-	chrootConfigDir := filepath.Join(targetOsConfigDir, "chrootenvconfigs")
-	if _, err := os.Stat(chrootConfigDir); os.IsNotExist(err) {
-		return "", fmt.Errorf("chroot config path does not exist: %s", chrootConfigDir)
+	globalCache, err := config.CacheDir()
+	if err != nil {
+		return fmt.Errorf("failed to get global cache dir: %w", err)
 	}
-	return chrootConfigDir, nil
+	if err := getTargetOsConfig(targetOs, targetDist, targetArch); err != nil {
+		return fmt.Errorf("failed to get target OS config: %v", err)
+	}
+	ChrootBuildDir = filepath.Join(globalWorkDir, config.ProviderId, "chrootbuild")
+	ChrootPkgCacheDir = filepath.Join(globalCache, "pkgCache", config.ProviderId)
+
+	return nil
 }
 
-func downloadChrootEnvPackages(targetOs string, targetDist string, targetArch string) ([]string, []string, error) {
+func getTargetOsConfig(targetOs, targetDist, targetArch string) error {
+	var err error
+	TargetOsConfigDir, err = config.GetTargetOsConfigDir(targetOs, targetDist)
+	if err != nil {
+		return fmt.Errorf("failed to get target OS config directory: %v", err)
+	}
+	targetOsConfigFile := filepath.Join(TargetOsConfigDir, "config.yml")
+	if _, err := os.Stat(targetOsConfigFile); os.IsNotExist(err) {
+		return fmt.Errorf("target OS config file does not exist: %s", targetOsConfigFile)
+	}
+	targetOsConfigs, err := file.ReadFromYaml(targetOsConfigFile)
+	if err != nil {
+		return fmt.Errorf("failed to read target OS config file: %v", err)
+	}
+	if targetOsConfig, ok := targetOsConfigs[targetArch]; ok {
+		TargetOsConfig = targetOsConfig.(map[string]interface{})
+	} else {
+		return fmt.Errorf("target OS %s config for architecture %s not found in %s", targetOs, targetArch, targetOsConfigFile)
+	}
+	return nil
+}
+
+func GetTargetOsPkgType() string {
+	pkgType, ok := TargetOsConfig["pkgType"]
+	if !ok {
+		return "unknown"
+	}
+	return pkgType.(string)
+}
+
+func GetTargetOsReleaseMajor() string {
+	releaseMajor, ok := TargetOsConfig["releaseMajor"]
+	if !ok {
+		return "unknown"
+	}
+	return releaseMajor.(string)
+}
+
+func getChrootEnvConfig() (map[interface{}]interface{}, error) {
+	chrootEnvConfigFile, ok := TargetOsConfig["chrootenvConfigFile"]
+	if !ok {
+		return nil, fmt.Errorf("chroot config file not found in target OS config")
+	}
+	chrootEnvConfigPath := filepath.Join(TargetOsConfigDir, chrootEnvConfigFile.(string))
+	if _, err := os.Stat(chrootEnvConfigPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("chroot environment config file does not exist: %s", chrootEnvConfigPath)
+	}
+	return file.ReadFromYaml(chrootEnvConfigPath)
+}
+
+func GetChrootEnvEssentialPackageList() ([]string, error) {
+	pkgList := []string{}
+	chrootEnvConfig, err := getChrootEnvConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read chroot environment config: %v", err)
+	}
+	if pkgListRaw, ok := chrootEnvConfig["essential"]; ok {
+		if pkgListStr, ok := pkgListRaw.([]interface{}); ok {
+			for _, pkg := range pkgListStr {
+				if pkgStr, ok := pkg.(string); ok {
+					pkgList = append(pkgList, pkgStr)
+				} else {
+					return nil, fmt.Errorf("invalid package format in chroot environment config: %v", pkg)
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("essential packages field is not a list in chroot environment config")
+		}
+	}
+	return pkgList, nil
+}
+
+func getChrootEnvPackageList() ([]string, error) {
+	pkgList := []string{}
+	chrootEnvConfig, err := getChrootEnvConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read chroot environment config: %v", err)
+	}
+	if pkgListRaw, ok := chrootEnvConfig["packages"]; ok {
+		if pkgListStr, ok := pkgListRaw.([]interface{}); ok {
+			for _, pkg := range pkgListStr {
+				if pkgStr, ok := pkg.(string); ok {
+					pkgList = append(pkgList, pkgStr)
+				} else {
+					return nil, fmt.Errorf("invalid package format in chroot environment config: %v", pkg)
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("packages field is not a list in chroot environment config")
+		}
+	} else {
+		return nil, fmt.Errorf("packages field not found in chroot environment config")
+	}
+	return pkgList, nil
+}
+
+func downloadChrootEnvPackages() ([]string, []string, error) {
 	var pkgsList []string
 	var allPkgsList []string
 
-	pkgType := GetTaRgetOsPkgType(targetOs)
-	chrootConfigDir, err := GetChrootConfigDir(targetOs, targetDist)
-	if err != nil {
-		return pkgsList, allPkgsList, fmt.Errorf("failed to get chroot config directory: %v", err)
-	}
-	chrootEnvCongfigPath := filepath.Join(chrootConfigDir, "chrootenv_"+targetArch+".yml")
-	essentialPkgsList, err := GetChrootEnvEssentialPackageList(chrootEnvCongfigPath)
+	pkgType := GetTargetOsPkgType()
+	essentialPkgsList, err := GetChrootEnvEssentialPackageList()
 	if err != nil {
 		return pkgsList, allPkgsList, fmt.Errorf("failed to get essential packages list: %v", err)
 	}
-	pkgsList, err = getChrootEnvPackageList(chrootEnvCongfigPath)
+	pkgsList, err = getChrootEnvPackageList()
 	if err != nil {
 		return pkgsList, allPkgsList, fmt.Errorf("failed to get chroot environment package list: %v", err)
 	}
@@ -243,7 +261,7 @@ func downloadChrootEnvPackages(targetOs string, targetDist string, targetArch st
 		}
 		return pkgsList, allPkgsList, nil
 	} else {
-		return pkgsList, allPkgsList, fmt.Errorf("unsupported OS: %s", targetOs)
+		return pkgsList, allPkgsList, fmt.Errorf("unsupported package type: %s", pkgType)
 	}
 }
 
@@ -398,17 +416,6 @@ fail:
 	return err
 }
 
-func mountDebLocalRepo(mountPoint string) error {
-	return mount.MountPath(ChrootPkgCacheDir, mountPoint, "--bind")
-}
-
-func umountDebLocalRepo(mountPoint string) error {
-	if err := mount.UmountPath(mountPoint); err != nil {
-		return fmt.Errorf("failed to unmount debian local repository: %w", err)
-	}
-	return nil
-}
-
 func installDebPkg(targetOs, targetDist, chrootEnvPath string, pkgsList []string) error {
 	var err error
 	var cmd string
@@ -417,17 +424,12 @@ func installDebPkg(targetOs, targetDist, chrootEnvPath string, pkgsList []string
 	repoPath := "/cdrom/cache-repo"
 	pkgListStr := strings.Join(pkgsList, ",")
 
-	chrootConfigDir, err := GetChrootConfigDir(targetOs, targetDist)
-	if err != nil {
-		return fmt.Errorf("failed to get chroot config directory: %v", err)
-	}
-
-	localRepoConfigPath := filepath.Join(chrootConfigDir, "local.list")
+	localRepoConfigPath := filepath.Join(TargetOsConfigDir, "chrootenvconfigs", "local.list")
 	if _, err := os.Stat(localRepoConfigPath); os.IsNotExist(err) {
 		return fmt.Errorf("local repository config file does not exist: %s", localRepoConfigPath)
 	}
 
-	if err := mountDebLocalRepo(repoPath); err != nil {
+	if err := mount.MountPath(ChrootPkgCacheDir, repoPath, "--bind"); err != nil {
 		return fmt.Errorf("failed to mount debian local repository: %v", err)
 	}
 
@@ -451,14 +453,14 @@ func installDebPkg(targetOs, targetDist, chrootEnvPath string, pkgsList []string
 		goto fail
 	}
 
-	if err := umountDebLocalRepo(repoPath); err != nil {
+	if err := mount.UmountPath(repoPath); err != nil {
 		return fmt.Errorf("failed to unmount debian local repository: %v", err)
 	}
 
 	return nil
 
 fail:
-	if err := umountDebLocalRepo(repoPath); err != nil {
+	if err := mount.UmountPath(repoPath); err != nil {
 		logger.Logger().Errorf("failed to unmount debian local repository: %v", err)
 	}
 
@@ -470,7 +472,7 @@ fail:
 
 func BuildChrootEnv(targetOs string, targetDist string, targetArch string) error {
 	log := logger.Logger()
-	pkgType := GetTaRgetOsPkgType(targetOs)
+	pkgType := GetTargetOsPkgType()
 	err := InitChrootBuildSpace(targetOs, targetDist, targetArch)
 	if err != nil {
 		return fmt.Errorf("failed to initialize chroot build space: %v", err)
@@ -483,7 +485,7 @@ func BuildChrootEnv(targetOs string, targetDist string, targetArch string) error
 
 	chrootEnvPath := filepath.Join(ChrootBuildDir, "chroot")
 
-	pkgsList, allPkgsList, err := downloadChrootEnvPackages(targetOs, targetDist, targetArch)
+	pkgsList, allPkgsList, err := downloadChrootEnvPackages()
 	if err != nil {
 		return fmt.Errorf("failed to download chroot environment packages: %v", err)
 	}
@@ -513,50 +515,6 @@ func BuildChrootEnv(targetOs string, targetDist string, targetArch string) error
 
 	if _, err = shell.ExecCmd("rm -rf "+chrootEnvPath, true, "", nil); err != nil {
 		return fmt.Errorf("failed to remove chroot environment build path: %v", err)
-	}
-
-	return nil
-}
-
-func CleanChrootBuild(targetOs string, targetDist string, targetArch string) error {
-	log := logger.Logger()
-	err := InitChrootBuildSpace(targetOs, targetDist, targetArch)
-	if err != nil {
-		return fmt.Errorf("failed to initialize chroot build space: %v", err)
-	}
-
-	files, err := os.ReadDir(ChrootBuildDir)
-	if err != nil {
-		return fmt.Errorf("failed to read chroot build path: %v", err)
-	}
-
-	for _, file := range files {
-		if file.IsDir() && file.Name() == "chroot" {
-			chrootEnvPath := filepath.Join(ChrootBuildDir, file.Name())
-			err := mount.UmountSysfs(chrootEnvPath)
-			if err != nil {
-				return fmt.Errorf("failed to unmount sysfs path: %v", err)
-			}
-			err = mount.CleanSysfs(chrootEnvPath)
-			if err != nil {
-				return fmt.Errorf("failed to clean sysfs path: %v", err)
-			}
-
-			_, err = shell.ExecCmd("rm -rf "+chrootEnvPath, true, "", nil)
-			if err != nil {
-				return fmt.Errorf("failed to remove chroot env build path: %v", err)
-			} else {
-				log.Infof("Removed chroot env build path: %s", chrootEnvPath)
-			}
-		}
-	}
-	if _, err := os.Stat(ChrootBuildDir); !os.IsNotExist(err) {
-		_, err = shell.ExecCmd("rm -rf "+ChrootBuildDir, true, "", nil)
-		if err != nil {
-			return fmt.Errorf("failed to remove chroot build directory: %v", err)
-		} else {
-			log.Infof("Removed chroot build directory: %s", ChrootBuildDir)
-		}
 	}
 
 	return nil

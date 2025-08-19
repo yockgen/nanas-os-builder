@@ -116,7 +116,7 @@ func downloadInitrdPkgs(initrdTemplate *config.ImageTemplate) error {
 	log.Infof("Downloading packages for: %s", initrdTemplate.GetImageName())
 
 	pkgList := initrdTemplate.GetPackages()
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	if pkgType == "deb" {
 		_, err := debutils.DownloadPackages(pkgList, chroot.ChrootPkgCacheDir, "")
 		if err != nil {
@@ -231,7 +231,7 @@ func createISO(template *config.ImageTemplate, initrdRootfsPath, initrdFilePath,
 		return fmt.Errorf("failed to create GRUB configuration: %v", err)
 	}
 
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	switch pkgType {
 	case "deb":
 		// Create standalone grub efi
@@ -419,7 +419,7 @@ func copyEfiBootloaderFiles(initrdRootfsPath, isoEfiPath string) error {
 	// Copy EFI bootloader files
 	var efiBootFilesSrc string
 	var efiGrubFilesSrc string
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	switch pkgType {
 	case "rpm":
 		efiGrubFilesSrc = filepath.Join(initrdRootfsPath, "/boot/efi/EFI/BOOT/grubx64.efi")

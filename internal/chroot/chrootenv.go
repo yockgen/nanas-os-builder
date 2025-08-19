@@ -113,7 +113,7 @@ func CopyFileFromChrootToHost(hostFilePath, chrootPath string) error {
 	return file.CopyFile(chrootHostPath, hostFilePath, "-f", true)
 }
 
-func UpdateChrootLocalRPMRepo(chrootRepoDir string) error {
+func updateChrootLocalRPMRepo(chrootRepoDir string) error {
 	chrootHostPath, err := GetChrootEnvHostPath(chrootRepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to get chroot host path for %s: %w", chrootRepoDir, err)
@@ -153,13 +153,14 @@ func UpdateLocalDebRepo(repoPath string) error {
 func RefreshLocalCacheRepo() error {
 	// From local.repo
 	chrootRepoDir := "/cdrom/cache-repo"
-	pkgType := GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := GetTargetOsPkgType()
 	if pkgType == "rpm" {
-		if err := UpdateChrootLocalRPMRepo(chrootRepoDir); err != nil {
+		releaseMajor := GetTargetOsReleaseMajor()
+		if err := updateChrootLocalRPMRepo(chrootRepoDir); err != nil {
 			return fmt.Errorf("failed to update rpm local cache repository %s: %w", chrootRepoDir, err)
 		}
 
-		cmd := "tdnf makecache --releasever 3.0"
+		cmd := fmt.Sprintf("tdnf makecache --releasever %s", releaseMajor)
 		if _, err := shell.ExecCmdWithStream(cmd, true, ChrootEnvRoot, nil); err != nil {
 			return fmt.Errorf("failed to refresh cache for chroot repository: %w", err)
 		}
@@ -194,25 +195,18 @@ func initChrootLocalRepo() error {
 }
 
 func createChrootRepo(targetOs, targetDist string) error {
-	var chrootRepoCongfigPath string
-	pkgType := GetTaRgetOsPkgType(targetOs)
-	chrootConfigDir, err := GetChrootConfigDir(targetOs, targetDist)
-	if err != nil {
-		return fmt.Errorf("failed to get chroot config directory: %v", err)
-	}
-
+	pkgType := GetTargetOsPkgType()
 	if pkgType == "rpm" {
-		chrootRepoCongfigPath = filepath.Join(chrootConfigDir, "local.repo")
+		chrootRepoCongfigPath := filepath.Join(TargetOsConfigDir, "chrootenvconfigs", "local.repo")
 		if _, err := os.Stat(chrootRepoCongfigPath); os.IsNotExist(err) {
 			return fmt.Errorf("chroot repo config file does not exist: %s", chrootRepoCongfigPath)
 		}
 
-		err = CopyFileFromHostToChroot(chrootRepoCongfigPath, "/etc/yum.repos.d/")
-		if err != nil {
+		if err := CopyFileFromHostToChroot(chrootRepoCongfigPath, "/etc/yum.repos.d/"); err != nil {
 			return fmt.Errorf("failed to copy local.repo: %w", err)
 		}
 	} else if pkgType == "deb" {
-		chrootRepoCongfigPath, err = GetChrootEnvHostPath("/etc/apt/sources.list.d/*")
+		chrootRepoCongfigPath, err := GetChrootEnvHostPath("/etc/apt/sources.list.d/*")
 		if err != nil {
 			return fmt.Errorf("failed to get chroot host path for local repo config: %w", err)
 		}
@@ -220,13 +214,12 @@ func createChrootRepo(targetOs, targetDist string) error {
 			return fmt.Errorf("failed to remove existing local repo config files: %w", err)
 		}
 
-		RepoCongfigPath := filepath.Join(chrootConfigDir, "local.list")
+		RepoCongfigPath := filepath.Join(TargetOsConfigDir, "chrootenvconfigs", "local.list")
 		if _, err := os.Stat(RepoCongfigPath); os.IsNotExist(err) {
 			return fmt.Errorf("chroot repo config file does not exist: %s", RepoCongfigPath)
 		}
 
-		err = CopyFileFromHostToChroot(RepoCongfigPath, "/etc/apt/sources.list.d/")
-		if err != nil {
+		if err := CopyFileFromHostToChroot(RepoCongfigPath, "/etc/apt/sources.list.d/"); err != nil {
 			return fmt.Errorf("failed to copy local.repo: %w", err)
 		}
 	} else {
@@ -322,39 +315,6 @@ fail:
 	return fmt.Errorf("failed to initialize chroot environment: %w", err)
 }
 
-func CheckOpenFile(chrootPath string) error {
-	log := logger.Logger()
-	output, err := shell.ExecCmdSilent("lsof +D "+chrootPath, true, "", nil)
-	if err != nil {
-		if strings.Contains(output, "WARNING: can't stat()") {
-			log.Debugf("Harmless WARNING: The error just means not all filesystems could be checked.")
-			log.Debugf("Harmless WARNING: But the result is valid.")
-		} else {
-			return fmt.Errorf("failed to check open files in chroot environment: %w", err)
-		}
-	}
-	if output != "" {
-		for _, line := range strings.Split(output, "\n") {
-			log.Debugf("%s", line)
-		}
-	}
-	return nil
-}
-
-func CheckUsedMountPoint(chrootPath string) error {
-	log := logger.Logger()
-	output, err := shell.ExecCmdSilent("fuser -vm "+chrootPath, true, "", nil)
-	if err != nil {
-		return fmt.Errorf("failed to check used mount points in chroot environment: %w", err)
-	}
-	if output != "" {
-		for _, line := range strings.Split(output, "\n") {
-			log.Debugf("%s", line)
-		}
-	}
-	return nil
-}
-
 func StopGPGComponents(chrootPath string) error {
 	log := logger.Logger()
 	cmdExist, err := shell.IsCommandExist("gpgconf", chrootPath)
@@ -405,8 +365,9 @@ func TdnfInstallPackage(packageName, installRoot string, repositoryIDList []stri
 	if err != nil {
 		return fmt.Errorf("failed to get chroot environment path for install root %s: %w", installRoot, err)
 	}
-	installCmd = fmt.Sprintf("tdnf install %s --releasever 3.0 --setopt reposdir=/etc/yum.repos.d/ --nogpgcheck --assumeyes --installroot %s",
-		packageName, chrootInstallRoot)
+	releaseMajor := GetTargetOsReleaseMajor()
+	installCmd = fmt.Sprintf("tdnf install %s --releasever %s --setopt reposdir=/etc/yum.repos.d/ --nogpgcheck --assumeyes --installroot %s",
+		packageName, releaseMajor, chrootInstallRoot)
 
 	if len(repositoryIDList) > 0 {
 		installCmd += " --disablerepo=*"

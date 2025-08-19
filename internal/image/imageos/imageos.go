@@ -31,7 +31,7 @@ func InstallInitrd(template *config.ImageTemplate) (string, string, error) {
 		return installRoot, versionInfo, fmt.Errorf("failed to initialize chroot install root: %w", err)
 	}
 
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	if pkgType == "deb" {
 		if err := initRootfsForDeb(installRoot); err != nil {
 			return installRoot, versionInfo, fmt.Errorf("failed to initialize rootfs for deb: %w", err)
@@ -95,7 +95,7 @@ func InstallImageOs(diskPathIdMap map[string]string, template *config.ImageTempl
 		return versionInfo, fmt.Errorf("failed to initialize chroot install root: %w", err)
 	}
 
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	if pkgType == "deb" {
 		if err = mountDiskRootToChroot(installRoot, diskPathIdMap, template); err != nil {
 			return versionInfo, fmt.Errorf("failed to mount disk root to chroot: %w", err)
@@ -192,12 +192,7 @@ func InitChrootInstallRoot(template *config.ImageTemplate) (string, error) {
 }
 
 func initRootfsForDeb(installRoot string) error {
-	chrootConfigDir, err := chroot.GetChrootConfigDir(config.TargetOs, config.TargetDist)
-	if err != nil {
-		return fmt.Errorf("failed to get chroot config directory: %v", err)
-	}
-	chrootEnvCongfigPath := filepath.Join(chrootConfigDir, "chrootenv_"+config.TargetArch+".yml")
-	essentialPkgsList, err := chroot.GetChrootEnvEssentialPackageList(chrootEnvCongfigPath)
+	essentialPkgsList, err := chroot.GetChrootEnvEssentialPackageList()
 	if err != nil {
 		return fmt.Errorf("failed to get essential packages list: %v", err)
 	}
@@ -414,12 +409,7 @@ func initDebLocalRepoWithinInstallRoot(installRoot string) error {
 		return fmt.Errorf("failed to remove existing local repo config files: %w", err)
 	}
 
-	chrootConfigDir, err := chroot.GetChrootConfigDir(config.TargetOs, config.TargetDist)
-	if err != nil {
-		return fmt.Errorf("failed to get chroot config directory: %v", err)
-	}
-
-	repoCongfigPath := filepath.Join(chrootConfigDir, "local.list")
+	repoCongfigPath := filepath.Join(chroot.TargetOsConfigDir, "chrootenvconfigs", "local.list")
 	if _, err := os.Stat(repoCongfigPath); os.IsNotExist(err) {
 		return fmt.Errorf("repo config file does not exist: %s", repoCongfigPath)
 	}
@@ -478,7 +468,7 @@ func preImageOsInstall(installRoot string, template *config.ImageTemplate) error
 
 func installImagePkgs(installRoot string, template *config.ImageTemplate) error {
 	log := logger.Logger()
-	pkgType := chroot.GetTaRgetOsPkgType(config.TargetOs)
+	pkgType := chroot.GetTargetOsPkgType()
 	if pkgType == "rpm" {
 		err := initImageRpmDb(installRoot, template)
 		if err != nil {
