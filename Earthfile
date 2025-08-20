@@ -158,8 +158,5 @@ test:
             "BEGIN{ if (total+0 < thr+0) { printf(\"❌ Coverage %.2f%% is below threshold %.2f%%\\n\", total, thr) } else { printf(\"✅ Coverage %.2f%% meets threshold %.2f%%\\n\", total, thr) } }" && \
         TEST_RC="$(cat .test_rc 2>/dev/null || echo 0)" && \
         COV_RC="$(cat .cov_rc 2>/dev/null || echo 0)" && \
-        if [ "$TEST_RC" -ne 0 ] || [ "$COV_RC" -ne 0 ]; then \
-        if [ "$COV_RC" -ne 0 ]; then \
-            echo "❌ Coverage is below threshold (exit $COV_RC)"; \
-            exit 1; \
-        fi
+        if [ "$TEST_RC" -ne 0 ]; then echo "❌ Unit tests failed (exit $TEST_RC)"; exit 1; fi && \
+        if [ "$COV_RC" -ne 0 ]; then exit 1; fi
