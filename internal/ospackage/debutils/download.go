@@ -42,7 +42,7 @@ var (
 	GzHref      string
 )
 
-// Packages returns the list of packages
+// Packages returns the list of base packages
 func Packages() ([]ospackage.PackageInfo, error) {
 	log := logger.Logger()
 	log.Infof("fetching packages from %s", RepoCfg.PkgList)
@@ -55,6 +55,49 @@ func Packages() ([]ospackage.PackageInfo, error) {
 
 	log.Infof("found %d packages in deb repo", len(packages))
 	return packages, nil
+}
+
+func UserPackages() ([]ospackage.PackageInfo, error) {
+
+	log := logger.Logger()
+	log.Infof("fetching packages from %s", "user package list")
+
+	baseURL := "http://localhost:8080"
+	pkNm := "public.gpg.key"
+
+	var userRepo []RepoConfig
+	userRepoSpec := []string{"userrepo01"} // Replace with user mutl repo input
+
+	for _, name := range userRepoSpec {
+		repo := RepoConfig{
+			PkgList:      baseURL + "/dists/testrepo1/main/binary-amd64/Packages.gz",
+			ReleaseFile:  fmt.Sprintf("%s/dists/testrepo1/Release", baseURL),
+			ReleaseSign:  fmt.Sprintf("%s/dists/testrepo1/Release.gpg", baseURL),
+			PkgPrefix:    baseURL,
+			Name:         name,
+			GPGCheck:     true,
+			RepoGPGCheck: true,
+			Enabled:      true,
+			PbGPGKey:     fmt.Sprintf("%s/%s", baseURL, pkNm),
+			BuildPath:    "./builds/elxr",
+		}
+		userRepo = append(userRepo, repo)
+	}
+
+	fmt.Println("PkgList value:", userRepo[0].PbGPGKey)
+
+	rpItx := userRepo[0]
+	packages1, err := ParsePrimary(rpItx.PkgPrefix, rpItx.PkgList, rpItx.ReleaseFile, rpItx.ReleaseSign, rpItx.PbGPGKey, rpItx.BuildPath)
+	if err != nil {
+		log.Errorf("parsing user repo failed: %v", err)
+	} else {
+		for _, pkg := range packages1 {
+			fmt.Printf("Package: %-40s URL: %s\n", pkg.Name, pkg.URL)
+		}
+	}
+
+	return nil, fmt.Errorf("yockgen: dummy error for testing")
+
 }
 
 // Validate verifies the downloaded files
@@ -179,10 +222,19 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	var downloadPkgList []string
 
 	log := logger.Logger()
-	// Fetch the entire package list
+
+	// Fetch the entire base package list
 	all, err := Packages()
 	if err != nil {
 		return downloadPkgList, fmt.Errorf("getting packages: %v", err)
+	}
+
+	// Fetch the entire user repos package list
+	user01, err := UserPackages()
+	fmt.Println(len(user01))
+	if err != nil {
+		log.Warnf("getting user packages failed: %v", err)
+		// Continue even if user packages failed
 	}
 
 	// Match the packages in the template against all the packages
