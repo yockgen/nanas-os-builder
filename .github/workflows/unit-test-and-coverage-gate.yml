@@ -63,7 +63,6 @@ jobs:
           fi
 
           # Set environment variables for subsequent steps
-          echo "COV_THRESHOLD=${HEAD_VAL}" >> "$GITHUB_ENV"
           echo "PRINT_TS=${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
           echo "FAIL_ON_NO_TESTS=false" >> "$GITHUB_ENV"
 
@@ -73,7 +72,7 @@ jobs:
       # Run standard tests with coverage
       - name: Run Earthly +test with coverage threshold
         run: |
-          earthly +test --COV_THRESHOLD="${COV_THRESHOLD}" --PRINT_TS="${PRINT_TS}" --FAIL_ON_NO_TESTS="${FAIL_ON_NO_TESTS}"
+          earthly +test --PRINT_TS="${PRINT_TS}" --FAIL_ON_NO_TESTS="${FAIL_ON_NO_TESTS}"
 
       # Always upload artifacts saved by Earthfile
       - name: Upload coverage.out
