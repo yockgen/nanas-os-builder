@@ -62,7 +62,7 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 	log := logger.Logger()
 	log.Infof("fetching packages from %s", "user package list")
 
-	// Declare a list containing two repo configs
+	// Declare a list containing 3 repo configs, will be replace by user input
 	repoList := []struct {
 		id       string
 		codename string
@@ -71,19 +71,11 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 	}{
 		{id: "testrepo1", codename: "testrepo1", url: "http://localhost:8080", pkey: "http://localhost:8080/public.gpg.key"},
 		{id: "testrepo2", codename: "testrepo2", url: "http://localhost:8081", pkey: "http://localhost:8081/public.gpg.key"},
-		{id: "openvino", codename: "ubuntu22", url: "https://apt.repos.intel.com/openvino/2024", pkey: "https://repositories.intel.com/graphics/intel-graphics.key"},
+		{id: "openvino", codename: "ubuntu22", url: "https://apt.repos.intel.com/openvino/2024", pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"},
+		//{id: "openvino", codename: "ubuntu22", url: "https://apt.repos.intel.com/openvino/2024", pkey: "http://localhost:8080/intel-openvino.gpg"},
 	}
 
-	// baseURL := "http://localhost:8080"
-	// pkNm := "public.gpg.key"
-	// wget https://apt.repos.intel.com/openvino/2024/dists/ubuntu22/Release
-	// wget https://apt.repos.intel.com/openvino/2024/dists/ubuntu22/Release.gpg
-	// wget https://apt.repos.intel.com/openvino/2024/dists/ubuntu22/main/binary-amd64/Packages.gz
-
 	var userRepo []RepoConfig
-	// userRepoSpec := []string{"userrepo01"} // Replace with user mutl repo input
-	// wget https://apt.repos.intel.com/openvino/2024/dists/ubuntu22/main/binary-amd64/Packages.gz
-	// wget https://apt.repos.intel.com/openvino/2024/dists/ubuntu22/Release
 
 	for _, repoItem := range repoList {
 		id := repoItem.id
@@ -107,6 +99,7 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 
 	var allUserPackages []ospackage.PackageInfo
 	for _, rpItx := range userRepo {
+
 		userPkgs, err := ParsePrimary(rpItx.PkgPrefix, rpItx.PkgList, rpItx.ReleaseFile, rpItx.ReleaseSign, rpItx.PbGPGKey, rpItx.BuildPath)
 		if err != nil {
 			log.Errorf("parsing user repo failed: %v %s %s", err, rpItx.ReleaseFile, rpItx.ReleaseSign)
@@ -122,9 +115,8 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 	}
 	fmt.Printf("\n\nEND\n\n")
 
-	// return allUserPackages, nil
-	return nil, fmt.Errorf("yockgen: dummy error for testing")
-
+	return allUserPackages, nil
+	// return nil, fmt.Errorf("yockgen: dummy error for testing")
 }
 
 // Validate verifies the downloaded files
@@ -267,7 +259,7 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	if err != nil {
 		log.Warnf("getting user packages failed: %v", err)
 		// Continue even if user packages failed
-		return downloadPkgList, fmt.Errorf("yockgen: user package fetch failed: %v", err)
+		return downloadPkgList, fmt.Errorf("User package fetch failed: %v", err)
 
 	}
 
