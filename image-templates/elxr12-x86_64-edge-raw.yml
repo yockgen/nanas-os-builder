@@ -8,6 +8,20 @@ target:
   arch: x86_64
   imageType: raw
 
+# Sample list of additional package repositories; replace codename, url, and pkey values as needed
+packageRepositories:
+  - codename: "company-internal"
+    url: "<URL>"
+    pkey: "<PUBLIC_KEY_URL>" # Uncomment and replace in real config
+
+  - codename: "dev-tools"
+    url: "<URL>"
+    pkey: "<PUBLIC_KEY_URL>" # Uncomment and replace in real config
+
+  - codename: "intel-openvino"
+    url: "<URL>"
+    pkey: "<PUBLIC_KEY_URL>" # Uncomment and replace in real config
+
 systemConfig:
   name: edge
   description: Minimal eLxr image with immutable rootfs

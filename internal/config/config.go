@@ -37,12 +37,20 @@ type DiskConfig struct {
 	Partitions         []PartitionInfo `yaml:"partitions"`
 }
 
+type PackageRepository struct {
+	ID       string `yaml:"id,omitempty"` // Auto-assigned
+	Codename string `yaml:"codename"`     // Repository identifier/codename
+	URL      string `yaml:"url"`          // Repository base URL
+	PKey     string `yaml:"pkey"`         // Public GPG key URL for verification
+}
+
 // ImageTemplate represents the YAML image template structure (unchanged)
 type ImageTemplate struct {
-	Image        ImageInfo    `yaml:"image"`
-	Target       TargetInfo   `yaml:"target"`
-	Disk         DiskConfig   `yaml:"disk,omitempty"`
-	SystemConfig SystemConfig `yaml:"systemConfig"`
+	Image               ImageInfo           `yaml:"image"`
+	Target              TargetInfo          `yaml:"target"`
+	Disk                DiskConfig          `yaml:"disk,omitempty"`
+	SystemConfig        SystemConfig        `yaml:"systemConfig"`
+	PackageRepositories []PackageRepository `yaml:"packageRepositories,omitempty"`
 }
 
 type Bootloader struct {
@@ -390,4 +398,24 @@ func (sc *SystemConfig) GetUserByName(name string) *UserConfig {
 // HasUsers returns whether any users are configured (SystemConfig method)
 func (sc *SystemConfig) HasUsers() bool {
 	return len(sc.Users) > 0
+}
+
+// GetPackageRepositories returns the list of additional package repositories
+func (t *ImageTemplate) GetPackageRepositories() []PackageRepository {
+	return t.PackageRepositories
+}
+
+// HasPackageRepositories returns true if additional repositories are configured
+func (t *ImageTemplate) HasPackageRepositories() bool {
+	return len(t.PackageRepositories) > 0
+}
+
+// GetRepositoryByCodename returns a repository by its codename, or nil if not found
+func (t *ImageTemplate) GetRepositoryByCodename(codename string) *PackageRepository {
+	for _, repo := range t.PackageRepositories {
+		if repo.Codename == codename {
+			return &repo
+		}
+	}
+	return nil
 }

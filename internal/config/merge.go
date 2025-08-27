@@ -113,6 +113,15 @@ func MergeConfigurations(userTemplate, defaultTemplate *ImageTemplate) (*ImageTe
 		mergedTemplate.SystemConfig = defaultTemplate.SystemConfig
 	}
 
+	// Package repositories - merge intelligently
+	mergedTemplate.PackageRepositories = mergePackageRepositories(
+		defaultTemplate.PackageRepositories,
+		userTemplate.PackageRepositories,
+	)
+	if len(mergedTemplate.PackageRepositories) > 0 {
+		log.Debugf("Merged %d package repositories", len(mergedTemplate.PackageRepositories))
+	}
+
 	log.Infof("Successfully merged user and default configurations")
 
 	// Debug mode: Pretty print the merged template
@@ -355,6 +364,16 @@ func mergeKernelConfig(defaultKernel, userKernel KernelConfig) KernelConfig {
 	// Note: name and uki fields come from defaults and are preserved
 
 	return merged
+}
+
+func mergePackageRepositories(defaultRepos, userRepos []PackageRepository) []PackageRepository {
+	if len(userRepos) == 0 {
+		return defaultRepos
+	}
+
+	// User repositories take precedence - they completely override defaults
+	// This gives users full control over repository configuration
+	return userRepos
 }
 
 // Helper functions to check if structures are empty

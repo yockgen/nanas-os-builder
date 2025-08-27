@@ -243,24 +243,59 @@
       "required": ["name", "packages", "kernel"],
       "additionalProperties": false
     },
+    "PackageRepository": {
+      "type": "object",
+      "description": "Additional package repository configuration",
+      "properties": {
+        "codename": {
+          "type": "string",
+          "description": "Repository identifier/codename",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "description": "Repository base URL",
+          "format": "uri"
+        },
+        "pkey": {
+          "type": "string",
+          "description": "Public GPG key URL for package verification",
+          "format": "uri"
+        }
+      },
+      "required": ["codename", "url", "pkey"],
+      "additionalProperties": false
+    },
+
     "FullTemplate": {
       "type": "object",
       "properties": {
         "image": { "$ref": "#/$defs/Image" },
         "target": { "$ref": "#/$defs/Target" },
         "disk": { "$ref": "#/$defs/Disk" },
-        "systemConfig": { "$ref": "#/$defs/SystemConfig" }
+        "systemConfig": { "$ref": "#/$defs/SystemConfig" },
+        "packageRepositories": {
+          "type": "array",
+          "description": "Additional package repositories",
+          "items": { "$ref": "#/$defs/PackageRepository" }
+        }
       },
       "required": ["image", "target", "systemConfig"],
       "additionalProperties": false
     },
+
     "UserTemplate": {
       "type": "object",
       "properties": {
         "image": { "$ref": "#/$defs/Image" },
         "target": { "$ref": "#/$defs/Target" },
         "disk": { "$ref": "#/$defs/Disk" },
-        "systemConfig": { "$ref": "#/$defs/SystemConfig" }
+        "systemConfig": { "$ref": "#/$defs/SystemConfig" },
+        "packageRepositories": {
+          "type": "array",
+          "description": "Additional package repositories",
+          "items": { "$ref": "#/$defs/PackageRepository" }
+        }
       },
       "required": ["image", "target"],
       "additionalProperties": false

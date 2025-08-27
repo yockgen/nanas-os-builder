@@ -2753,3 +2753,348 @@ func TestGetTargetOsConfigDir(t *testing.T) {
 		}
 	}
 }
+
+// Add these tests to config_test.go following ICT's existing test patterns
+
+func TestPackageRepositories(t *testing.T) {
+	template := &ImageTemplate{
+		Image: ImageInfo{
+			Name:    "test-image",
+			Version: "1.0.0",
+		},
+		Target: TargetInfo{
+			OS:        "azure-linux",
+			Dist:      "azl3",
+			Arch:      "x86_64",
+			ImageType: "raw",
+		},
+		PackageRepositories: []PackageRepository{
+			{
+				Codename: "test-repo1",
+				URL:      "https://test.example.com/repo1",
+				PKey:     "https://test.example.com/key1.pub",
+			},
+			{
+				Codename: "test-repo2",
+				URL:      "https://test.example.com/repo2",
+				PKey:     "https://test.example.com/key2.pub",
+			},
+		},
+		SystemConfig: SystemConfig{
+			Name:     "test-config",
+			Packages: []string{"package1", "package2"},
+			Kernel: KernelConfig{
+				Version: "6.12",
+				Cmdline: "quiet",
+			},
+		},
+	}
+
+	// Test repository access methods
+	repos := template.GetPackageRepositories()
+	if len(repos) != 2 {
+		t.Errorf("expected 2 repositories, got %d", len(repos))
+	}
+
+	if !template.HasPackageRepositories() {
+		t.Errorf("expected template to have package repositories")
+	}
+
+	repo1 := template.GetRepositoryByCodename("test-repo1")
+	if repo1 == nil {
+		t.Errorf("expected to find test-repo1")
+	} else {
+		if repo1.URL != "https://test.example.com/repo1" {
+			t.Errorf("expected repo1 URL 'https://test.example.com/repo1', got '%s'", repo1.URL)
+		}
+		if repo1.PKey != "https://test.example.com/key1.pub" {
+			t.Errorf("expected repo1 pkey 'https://test.example.com/key1.pub', got '%s'", repo1.PKey)
+		}
+	}
+
+	// Test non-existent repository
+	nonExistentRepo := template.GetRepositoryByCodename("nonexistent")
+	if nonExistentRepo != nil {
+		t.Errorf("expected not to find nonexistent repository")
+	}
+}
+
+func TestEmptyPackageRepositories(t *testing.T) {
+	template := &ImageTemplate{
+		Image:        ImageInfo{Name: "test", Version: "1.0.0"},
+		Target:       TargetInfo{OS: "azure-linux", Dist: "azl3", Arch: "x86_64", ImageType: "raw"},
+		SystemConfig: SystemConfig{Name: "test-config", Packages: []string{"package1"}, Kernel: KernelConfig{Version: "6.12"}},
+		// No PackageRepositories defined
+	}
+
+	repos := template.GetPackageRepositories()
+	if len(repos) != 0 {
+		t.Errorf("expected 0 repositories for empty config, got %d", len(repos))
+	}
+
+	if template.HasPackageRepositories() {
+		t.Errorf("expected template to not have package repositories")
+	}
+
+	nonExistentRepo := template.GetRepositoryByCodename("anyrepo")
+	if nonExistentRepo != nil {
+		t.Errorf("expected not to find any repository in empty config")
+	}
+}
+
+func TestMergePackageRepositories(t *testing.T) {
+	defaultRepos := []PackageRepository{
+		{Codename: "default1", URL: "https://default.com/1", PKey: "https://default.com/1.pub"},
+		{Codename: "default2", URL: "https://default.com/2", PKey: "https://default.com/2.pub"},
+	}
+
+	userRepos := []PackageRepository{
+		{Codename: "user1", URL: "https://user.com/1", PKey: "https://user.com/1.pub"},
+	}
+
+	merged := mergePackageRepositories(defaultRepos, userRepos)
+
+	// User repos should completely override defaults
+	if len(merged) != 1 {
+		t.Errorf("expected 1 merged repository, got %d", len(merged))
+	}
+
+	if merged[0].Codename != "user1" {
+		t.Errorf("expected merged repo codename 'user1', got '%s'", merged[0].Codename)
+	}
+
+	if merged[0].URL != "https://user.com/1" {
+		t.Errorf("expected merged repo URL 'https://user.com/1', got '%s'", merged[0].URL)
+	}
+
+	if merged[0].PKey != "https://user.com/1.pub" {
+		t.Errorf("expected merged repo pkey 'https://user.com/1.pub', got '%s'", merged[0].PKey)
+	}
+}
+
+func TestMergePackageRepositoriesEmpty(t *testing.T) {
+	defaultRepos := []PackageRepository{
+		{Codename: "default1", URL: "https://default.com/1", PKey: "https://default.com/1.pub"},
+	}
+
+	// Test with empty user repos - should return defaults
+	emptyUserRepos := []PackageRepository{}
+	merged := mergePackageRepositories(defaultRepos, emptyUserRepos)
+	if len(merged) != 1 {
+		t.Errorf("expected 1 default repository when user repos empty, got %d", len(merged))
+	}
+	if merged[0].Codename != "default1" {
+		t.Errorf("expected default repo codename, got '%s'", merged[0].Codename)
+	}
+
+	// Test with nil user repos - should return defaults
+	merged = mergePackageRepositories(defaultRepos, nil)
+	if len(merged) != 1 {
+		t.Errorf("expected 1 default repository when user repos nil, got %d", len(merged))
+	}
+
+	// Test with both empty
+	merged = mergePackageRepositories([]PackageRepository{}, []PackageRepository{})
+	if len(merged) != 0 {
+		t.Errorf("expected 0 repositories when both are empty, got %d", len(merged))
+	}
+}
+
+func TestMergeConfigurationsWithPackageRepositories(t *testing.T) {
+	defaultTemplate := &ImageTemplate{
+		Image:  ImageInfo{Name: "default", Version: "1.0.0"},
+		Target: TargetInfo{OS: "azure-linux", Dist: "azl3", Arch: "x86_64", ImageType: "raw"},
+		PackageRepositories: []PackageRepository{
+			{Codename: "azure-extras", URL: "https://packages.microsoft.com/extras", PKey: "https://packages.microsoft.com/keys/microsoft.asc"},
+			{Codename: "azure-preview", URL: "https://packages.microsoft.com/preview", PKey: "https://packages.microsoft.com/keys/microsoft.asc"},
+		},
+		SystemConfig: SystemConfig{
+			Name:     "default-config",
+			Packages: []string{"base-package"},
+			Kernel:   KernelConfig{Version: "6.10", Cmdline: "quiet"},
+		},
+	}
+
+	userTemplate := &ImageTemplate{
+		Image:  ImageInfo{Name: "user-image", Version: "2.0.0"},
+		Target: TargetInfo{OS: "azure-linux", Dist: "azl3", Arch: "x86_64", ImageType: "raw"},
+		PackageRepositories: []PackageRepository{
+			{Codename: "company-internal", URL: "https://packages.company.com/internal", PKey: "https://packages.company.com/keys/internal.pub"},
+		},
+		SystemConfig: SystemConfig{
+			Name:     "user-config",
+			Packages: []string{"user-package"},
+			Kernel:   KernelConfig{Version: "6.12"},
+		},
+	}
+
+	merged, err := MergeConfigurations(userTemplate, defaultTemplate)
+	if err != nil {
+		t.Fatalf("failed to merge configurations: %v", err)
+	}
+
+	// Test that user repositories completely override defaults
+	repos := merged.GetPackageRepositories()
+	if len(repos) != 1 {
+		t.Errorf("expected 1 merged repository (user override), got %d", len(repos))
+	}
+
+	if repos[0].Codename != "company-internal" {
+		t.Errorf("expected user repository codename 'company-internal', got '%s'", repos[0].Codename)
+	}
+
+	// Verify default repositories are not included when user specifies repositories
+	companyRepo := merged.GetRepositoryByCodename("company-internal")
+	if companyRepo == nil {
+		t.Errorf("expected to find user repository 'company-internal'")
+	}
+
+	defaultRepo := merged.GetRepositoryByCodename("azure-extras")
+	if defaultRepo != nil {
+		t.Errorf("expected default repository 'azure-extras' to be overridden by user repos")
+	}
+}
+
+func TestMergeConfigurationsNoUserRepositories(t *testing.T) {
+	defaultTemplate := &ImageTemplate{
+		Image:  ImageInfo{Name: "default", Version: "1.0.0"},
+		Target: TargetInfo{OS: "azure-linux", Dist: "azl3", Arch: "x86_64", ImageType: "raw"},
+		PackageRepositories: []PackageRepository{
+			{Codename: "azure-extras", URL: "https://packages.microsoft.com/extras", PKey: "https://packages.microsoft.com/keys/microsoft.asc"},
+		},
+		SystemConfig: SystemConfig{
+			Name:     "default-config",
+			Packages: []string{"base-package"},
+			Kernel:   KernelConfig{Version: "6.10"},
+		},
+	}
+
+	userTemplate := &ImageTemplate{
+		Image:  ImageInfo{Name: "user-image", Version: "2.0.0"},
+		Target: TargetInfo{OS: "azure-linux", Dist: "azl3", Arch: "x86_64", ImageType: "raw"},
+		// No PackageRepositories specified by user
+		SystemConfig: SystemConfig{
+			Name:     "user-config",
+			Packages: []string{"user-package"},
+			Kernel:   KernelConfig{Version: "6.12"},
+		},
+	}
+
+	merged, err := MergeConfigurations(userTemplate, defaultTemplate)
+	if err != nil {
+		t.Fatalf("failed to merge configurations: %v", err)
+	}
+
+	// Test that default repositories are preserved when user doesn't specify any
+	repos := merged.GetPackageRepositories()
+	if len(repos) != 1 {
+		t.Errorf("expected 1 default repository when user doesn't specify repos, got %d", len(repos))
+	}
+
+	if repos[0].Codename != "azure-extras" {
+		t.Errorf("expected default repository codename 'azure-extras', got '%s'", repos[0].Codename)
+	}
+}
+
+func TestPackageRepositoryYAMLParsing(t *testing.T) {
+	yamlContent := `image:
+  name: test-repo-parsing
+  version: "1.0.0"
+
+target:
+  os: azure-linux
+  dist: azl3
+  arch: x86_64
+  imageType: raw
+
+packageRepositories:
+  - codename: "test-repo1"
+    url: "https://test.example.com/repo1"
+    pkey: "https://test.example.com/key1.pub"
+  - codename: "test-repo2"
+    url: "https://test.example.com/repo2"
+    pkey: "https://test.example.com/key2.pub"
+
+systemConfig:
+  name: test
+  packages:
+    - test-package
+  kernel:
+    version: "6.12"
+    cmdline: "quiet"
+`
+
+	tmpFile, err := os.CreateTemp("", "test-*.yml")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(yamlContent); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Test loading with package repositories
+	template, err := LoadTemplate(tmpFile.Name(), false) // User template validation
+	if err != nil {
+		t.Fatalf("failed to load YAML template with package repositories: %v", err)
+	}
+
+	// Verify package repositories were parsed correctly
+	repos := template.GetPackageRepositories()
+	if len(repos) != 2 {
+		t.Errorf("expected 2 parsed repositories, got %d", len(repos))
+	}
+
+	repo1 := template.GetRepositoryByCodename("test-repo1")
+	if repo1 == nil {
+		t.Errorf("expected to find test-repo1")
+	} else {
+		if repo1.URL != "https://test.example.com/repo1" {
+			t.Errorf("expected repo1 URL 'https://test.example.com/repo1', got '%s'", repo1.URL)
+		}
+		if repo1.PKey != "https://test.example.com/key1.pub" {
+			t.Errorf("expected repo1 pkey 'https://test.example.com/key1.pub', got '%s'", repo1.PKey)
+		}
+	}
+
+	repo2 := template.GetRepositoryByCodename("test-repo2")
+	if repo2 == nil {
+		t.Errorf("expected to find test-repo2")
+	}
+}
+
+func TestPackageRepositoriesWithDuplicateCodenames(t *testing.T) {
+	repos := []PackageRepository{
+		{Codename: "duplicate", URL: "https://first.com", PKey: "https://first.com/key.pub"},
+		{Codename: "unique", URL: "https://unique.com", PKey: "https://unique.com/key.pub"},
+		{Codename: "duplicate", URL: "https://second.com", PKey: "https://second.com/key.pub"},
+	}
+
+	template := &ImageTemplate{
+		Image:               ImageInfo{Name: "test", Version: "1.0.0"},
+		Target:              TargetInfo{OS: "azure-linux", Dist: "azl3", Arch: "x86_64", ImageType: "raw"},
+		PackageRepositories: repos,
+		SystemConfig:        SystemConfig{Name: "test", Packages: []string{"pkg"}, Kernel: KernelConfig{Version: "6.12"}},
+	}
+
+	// GetRepositoryByCodename should return the first match
+	duplicateRepo := template.GetRepositoryByCodename("duplicate")
+	if duplicateRepo == nil {
+		t.Errorf("expected to find duplicate repository")
+	} else {
+		if duplicateRepo.URL != "https://first.com" {
+			t.Errorf("expected first duplicate repo URL, got '%s'", duplicateRepo.URL)
+		}
+	}
+
+	uniqueRepo := template.GetRepositoryByCodename("unique")
+	if uniqueRepo == nil {
+		t.Errorf("expected to find unique repository")
+	} else {
+		if uniqueRepo.URL != "https://unique.com" {
+			t.Errorf("expected unique repo URL, got '%s'", uniqueRepo.URL)
+		}
+	}
+}

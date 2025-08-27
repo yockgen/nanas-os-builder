@@ -8,6 +8,20 @@ target:
   arch: x86_64 # Target OS architecture
   imageType: raw # Image type, valid value: [raw, iso].
 
+# Sample list of additional package repositories; replace codename, url, and pkey values as needed
+packageRepositories:
+  - codename: "company-internal"
+    url: "<URL>"
+    pkey: "<PUBLIC_KEY_URL>" # Uncomment and replace in real config
+
+  - codename: "dev-tools"
+    url: "<URL>"
+    pkey: "<PUBLIC_KEY_URL>" # Uncomment and replace in real config
+
+  - codename: "intel-openvino"
+    url: "<URL>"
+    pkey: "<PUBLIC_KEY_URL>" # Uncomment and replace in real config
+
 # Disk configuration can be omitted to use defaults from default template
 # If specified, it will override the default disk configuration completely
 
