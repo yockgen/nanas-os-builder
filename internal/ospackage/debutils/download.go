@@ -42,6 +42,7 @@ var (
 	PkgChecksum  []pkgChecksum
 	GzHref       string
 	Architecture string
+	UserRepo     []config.PackageRepository
 )
 
 // Packages returns the list of base packages
@@ -65,20 +66,39 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 	log.Infof("fetching packages from %s", "user package list")
 
 	// Declare a list containing 3 repo configs, will be replace by user input
-	repoList := []struct {
+	// repoList := []struct {
+	// 	id       string
+	// 	codename string
+	// 	url      string
+	// 	pkey     string
+	// }{
+	// 	{id: "testrepo1", codename: "testrepo1", url: "http://localhost:8080", pkey: "http://localhost:8080/public.gpg.key"},
+	// 	{id: "testrepo2", codename: "testrepo2", url: "http://localhost:8081", pkey: "http://localhost:8081/public.gpg.key"},
+	// 	{id: "openvino", codename: "ubuntu22", url: "https://apt.repos.intel.com/openvino/2024", pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"},
+	// 	//{id: "openvino", codename: "ubuntu22", url: "https://apt.repos.intel.com/openvino/2024", pkey: "http://localhost:8080/intel-openvino.gpg"},
+	// }
+
+	repoList := make([]struct {
 		id       string
 		codename string
 		url      string
 		pkey     string
-	}{
-		{id: "testrepo1", codename: "testrepo1", url: "http://localhost:8080", pkey: "http://localhost:8080/public.gpg.key"},
-		{id: "testrepo2", codename: "testrepo2", url: "http://localhost:8081", pkey: "http://localhost:8081/public.gpg.key"},
-		{id: "openvino", codename: "ubuntu22", url: "https://apt.repos.intel.com/openvino/2024", pkey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"},
-		//{id: "openvino", codename: "ubuntu22", url: "https://apt.repos.intel.com/openvino/2024", pkey: "http://localhost:8080/intel-openvino.gpg"},
+	}, len(UserRepo))
+	for i, repo := range UserRepo {
+		repoList[i] = struct {
+			id       string
+			codename string
+			url      string
+			pkey     string
+		}{
+			id:       fmt.Sprintf("custrepo%d", i+1),
+			codename: repo.Codename,
+			url:      repo.URL,
+			pkey:     repo.PKey,
+		}
 	}
 
 	var userRepo []RepoConfig
-
 	for _, repoItem := range repoList {
 		id := repoItem.id
 		codename := repoItem.codename
