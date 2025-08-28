@@ -140,15 +140,7 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 		allUserPackages = append(allUserPackages, userPkgs...)
 	}
 
-	// Print all user packages with their name and URL
-	// fmt.Printf("\n\nStart:\n\n")
-	// for _, pkg := range allUserPackages {
-	// 	fmt.Printf("yockgen: Package: %-40s URL: %s\n", pkg.Name, pkg.URL)
-	// }
-	// fmt.Printf("\n\nEND\n\n")
-
 	return allUserPackages, nil
-	// return nil, fmt.Errorf("yockgen: dummy error for testing")
 }
 
 // CheckFileExists sends a HEAD request to the given URL and

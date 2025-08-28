@@ -143,6 +143,7 @@ func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, r
 		case "Depends":
 			// Split dependencies by comma and clean each dependency
 			deps := strings.Split(val, ",")
+			pkg.RequiresVer = append(pkg.RequiresVer, deps...)
 			for _, dep := range deps {
 				cleanedDep := CleanDependencyName(dep)
 				if cleanedDep != "" {
@@ -208,6 +209,7 @@ func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, r
 // matched) and the full list of all PackageInfos from the repo, and
 // returns the minimal closure of PackageInfos needed to satisfy all Requires.
 func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospackage.PackageInfo, error) {
+
 	// Build maps for fast lookup
 	byNameVer := make(map[string]ospackage.PackageInfo, len(all))
 	byProvides := make(map[string]ospackage.PackageInfo)
@@ -276,18 +278,6 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 		// Traverse dependencies
 		for _, dep := range cur.Requires {
 			depName := CleanDependencyName(dep)
-			depVersion := ""
-
-			// Extract version information if present (for more precise matching)
-			originalDep := strings.TrimSpace(dep)
-			if idx := strings.Index(originalDep, "("); idx > 0 {
-				verPart := strings.TrimSpace(originalDep[idx:])
-				verPart = strings.Trim(verPart, "() ")
-				if strings.HasPrefix(verPart, "=") {
-					depVersion = strings.TrimSpace(strings.TrimPrefix(verPart, "="))
-				}
-			}
-
 			if depName == "" || neededSet[depName] != struct{}{} {
 				continue
 			}
@@ -295,18 +285,30 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 				continue
 			}
 
-			// yockgen start: SIMPLE FIRST STEP: Check if there are multiple candidates
 			candidates := findAllCandidates(depName, all)
-			if len(candidates) > 1 {
+			if len(candidates) >= 1 {
 
-				// Multiple candidates found - write details to a file for analysis
-				outFile := "/data/yockgen/depedencies.txt"
-				f, err := os.OpenFile(outFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				if err == nil {
-					defer f.Close()
-					fmt.Fprintf(f, "Multiple candidates for dependency %q of package %q (%d candidates):\n", depName, cur.Name, len(candidates))
-					for i, candidate := range candidates {
-						fmt.Fprintf(f, "  Candidate %d: %s (URL: %s)\n", i+1, candidate.Name, candidate.URL)
+				//yockgen: debug info
+				if cur.Name == "mypackagea" {
+
+					outFile := "/data/yockgen/all-elxr.txt"
+					f, err := os.OpenFile(outFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+					if err == nil {
+						defer f.Close()
+						for _, pi := range all {
+							// Write each PackageInfo in a readable format
+							fmt.Fprintf(f, "Name: %s\n", pi.Name)
+							fmt.Fprintf(f, "Version: %s\n", pi.Version)
+							fmt.Fprintf(f, "Type: %s\n", pi.Type)
+							fmt.Fprintf(f, "URL: %s\n", pi.URL)
+							fmt.Fprintf(f, "Description: %s\n", pi.Description)
+							fmt.Fprintf(f, "Arch: %s\n", pi.Arch)
+							fmt.Fprintf(f, "Origin: %s\n", pi.Origin)
+							fmt.Fprintf(f, "Requires: %v\n", pi.Requires)
+							fmt.Fprintf(f, "Provides: %v\n", pi.Provides)
+							fmt.Fprintf(f, "Checksums: %v\n", pi.Checksums)
+							fmt.Fprintf(f, "-----------------------------\n")
+						}
 					}
 				}
 
@@ -317,70 +319,9 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 				}
 				queue = append(queue, chosenCandidate)
 				continue
+			}
 
-				// return nil, fmt.Errorf("yockgen yockgen yockgen::multiple candidates (%d) found for dependency %q of package %q, see %s for details", len(candidates), depName, cur.Name, outFile)
-			}
-			// yockgen end
-
-			// If version is enforced, match by name+version or latest >= version
-			if depVersion != "" {
-				key := fmt.Sprintf("%s=%s", depName, depVersion)
-				if depPkg, ok := byNameVer[key]; ok {
-					queue = append(queue, depPkg)
-					continue
-				}
-				var found *ospackage.PackageInfo
-				for _, pi := range all {
-					if pi.Name == depName {
-						cmp, err := compareDebianVersions(pi.Version, depVersion)
-						if err != nil {
-							return nil, fmt.Errorf("failed to compare versions: %v", err)
-						}
-						if cmp >= 0 {
-							if found == nil {
-								tmp := pi
-								found = &tmp
-							} else {
-								cmp2, err := compareDebianVersions(pi.Version, found.Version)
-								if err != nil {
-									return nil, fmt.Errorf("failed to compare versions: %v", err)
-								}
-								if cmp2 > 0 {
-									tmp := pi
-									found = &tmp
-								}
-							}
-						}
-					}
-				}
-				if found != nil {
-					queue = append(queue, *found)
-					continue
-				}
-				return nil, fmt.Errorf("dependency %q (version %q or higher) required by %q not found in repo", depName, depVersion, cur.Name)
-			}
-			// Always pull the latest version for unconstrained dependencies
-			var latest *ospackage.PackageInfo
-			for _, pi := range all {
-				if pi.Name == depName {
-					if latest == nil {
-						tmp := pi
-						latest = &tmp
-					} else {
-						cmp, err := compareDebianVersions(pi.Version, latest.Version)
-						if err != nil {
-							return nil, fmt.Errorf("failed to compare versions: %v", err)
-						}
-						if cmp > 0 {
-							tmp := pi
-							latest = &tmp
-						}
-					}
-				}
-			}
-			if latest != nil {
-				queue = append(queue, *latest)
-			} else if provPkg, ok := byProvides[depName]; ok {
+			if provPkg, ok := byProvides[depName]; ok {
 				// Find the latest version of provPkg.Name based on provPkg.Version
 				var latestProv *ospackage.PackageInfo
 				for _, pi := range all {
@@ -673,20 +614,106 @@ func extractRepoBase(rawURL string) (string, error) {
 	return base, nil
 }
 
+func verfiyVersionRequirementMet(reqVers []string, filter string) (op string, ver string, found bool) {
+	for _, reqVer := range reqVers {
+		reqVer = strings.TrimSpace(reqVer)
+		name := reqVer
+		op = ""
+		ver = ""
+
+		// Find version constraint inside parentheses
+		if idx := strings.Index(reqVer, "("); idx != -1 {
+			name = strings.TrimSpace(reqVer[:idx])
+			verConstraint := reqVer[idx+1:]
+			if idx2 := strings.Index(verConstraint, ")"); idx2 != -1 {
+				verConstraint = verConstraint[:idx2]
+			}
+
+			// Split into operator and version
+			parts := strings.Fields(verConstraint)
+			if len(parts) == 2 {
+				op = parts[0]
+				ver = parts[1]
+			}
+		}
+
+		// Check if this requirement matches the filter
+		if name == filter {
+			return op, ver, true
+		}
+
+	}
+
+	return "", "", false
+}
+
 func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospackage.PackageInfo) (ospackage.PackageInfo, error) {
 
 	/////////////////////////////////////
 	//A: if version is specified
 	/////////////////////////////////////
 
-	//Rule 3: if the latest matched with parent depedency's requirement
-	// if latest.Name == parentPkg.Name && latest.Version == parentPkg.Version {
-	// 	return latest, nil
+	// if parentPkg.Name == "mypackagea" {
+
+	// 	for _, candidate := range candidates {
+	// 		fmt.Printf("\ncandidate: %s, version: %s\n", candidate.Name, candidate.Version)
+	// 	}
+
+	// 	fmt.Printf("yockgen:\n\n parentPkg:\n")
+	// 	fmt.Printf("  Name: %s\n", parentPkg.Name)
+	// 	fmt.Printf("  Version: %s\n", parentPkg.Version)
+	// 	fmt.Printf("  Type: %s\n", parentPkg.Type)
+	// 	fmt.Printf("  URL: %s\n", parentPkg.URL)
+	// 	fmt.Printf("  Description: %s\n", parentPkg.Description)
+	// 	fmt.Printf("  Arch: %s\n", parentPkg.Arch)
+	// 	fmt.Printf("  Origin: %s\n", parentPkg.Origin)
+	// 	fmt.Printf("  Requires: %v\n", parentPkg.Requires)
+	// 	fmt.Printf("  RequiresVer: %v\n", parentPkg.RequiresVer)
+	// 	fmt.Printf("  Provides: %v\n", parentPkg.Provides)
+	// 	fmt.Printf("  Checksums: %v\n\n", parentPkg.Checksums)
+
+	op, ver, found := verfiyVersionRequirementMet(parentPkg.RequiresVer, candidates[0].Name)
+	fmt.Printf("verfiyVersionRequirementMet: package=%s op=%s, ver=%s, found=%v\n", candidates[0].Name, op, ver, found)
+
+	var selectedCandidate ospackage.PackageInfo
+	for _, candidate := range candidates {
+		cmp, err := compareDebianVersions(candidate.Version, ver)
+		fmt.Printf("compareDebianVersions(%q, %q) = %d, err=%v\n", candidate.Version, ver, cmp, err)
+		if cmp == 0 && op == "=" {
+			selectedCandidate = candidate
+			break
+		} else if cmp < 0 && (op == "<<" || op == "<") {
+			selectedCandidate = candidate
+			break
+		} else if cmp <= 0 && op == "<=" {
+			selectedCandidate = candidate
+			break
+		} else if cmp > 0 && (op == ">>" || op == ">") {
+			selectedCandidate = candidate
+			break
+		} else if cmp >= 0 && op == ">=" {
+			selectedCandidate = candidate
+			break
+		}
+	}
+
+	if selectedCandidate.Name != "" {
+		return selectedCandidate, nil
+	}
+
+	// 	fmt.Printf("Selected candidate: Name=%s, Version=%s\n", selectedCandidate.Name, selectedCandidate.Version)
+	// 	fmt.Printf("\n\n")
+
+	// 	return ospackage.PackageInfo{}, fmt.Errorf("yockgen yockgen yockgen::multiple candidates (%d) found for dependency %q of package %q, see /data/yockgen/depedencies.txt for details", len(candidates), parentPkg.Name, parentPkg.Name)
 	// }
 
-	//1. get depversion of the dp
-	//2. check latest != depversion (error, either less than or more than) or depversion == "" - return latest
-	// 1.1.1 = if less than error
+	//compareDebianVersions("6.6.4-5+b1", "7.6.4-5+b1")
+	// -1 = left < right
+	//0 rqual
+	// 1 = left > right
+	//if -1
+	//    string ([acct (= 6.6.4-5+b1)] == "=" ) false
+	//        string ([acct (< 6.6.4-5+b1)] == "<" ) false
 
 	/////////////////////////////////////
 	// B: if version is not specificied
