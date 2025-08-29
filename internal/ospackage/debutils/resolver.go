@@ -591,7 +591,7 @@ func extractRepoBase(rawURL string) (string, error) {
 	return base, nil
 }
 
-func verfiyVersionRequirementMet(reqVers []string, filter string) (op string, ver string, found bool) {
+func verifyVersionRequirementMet(reqVers []string, filter string) (op string, ver string, found bool) {
 	for _, reqVer := range reqVers {
 		reqVer = strings.TrimSpace(reqVer)
 		name := reqVer
@@ -630,13 +630,15 @@ func resolveMultiCandidates(parentPkg ospackage.PackageInfo, candidates []ospack
 	//A: if version is specified
 	/////////////////////////////////////
 
-	op, ver, found := verfiyVersionRequirementMet(parentPkg.RequiresVer, candidates[0].Name)
+	op, ver, found := verifyVersionRequirementMet(parentPkg.RequiresVer, candidates[0].Name)
 	fmt.Printf("verfiyVersionRequirementMet: package=%s op=%s, ver=%s, found=%v\n", candidates[0].Name, op, ver, found)
 
 	var selectedCandidate ospackage.PackageInfo
 	for _, candidate := range candidates {
 		cmp, err := compareDebianVersions(candidate.Version, ver)
-		fmt.Printf("compareDebianVersions(%q, %q) = %d, err=%v\n", candidate.Version, ver, cmp, err)
+		if err != nil {
+			return ospackage.PackageInfo{}, fmt.Errorf("failed to compare versions for candidate %q: %v", candidate.Name, err)
+		}
 		if cmp == 0 && op == "=" {
 			selectedCandidate = candidate
 			break
