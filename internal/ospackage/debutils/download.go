@@ -233,18 +233,55 @@ func MatchRequested(requests []string, all []ospackage.PackageInfo) ([]ospackage
 	log := logger.Logger()
 
 	var out []ospackage.PackageInfo
+	var requestedPkgs []string
+	gotMissingPkg := false
 
 	for _, want := range requests {
 		if pkg, found := ResolveTopPackageConflicts(want, all); found {
 			out = append(out, pkg)
 		} else {
-			log.Infof("requested package %q not found in repo", want)
-			return nil, fmt.Errorf("requested package '%q' not found in repo", want)
+			requestedPkgs = append(requestedPkgs, want)
+			log.Warnf("requested package '%q' not found in repo", want)
+			gotMissingPkg = true
 		}
 	}
 
 	log.Infof("found %d packages in request of %d", len(out), len(requests))
+	if gotMissingPkg {
+		report, err := WriteArrayToFile(requestedPkgs, "Missing Requested Packages")
+		if err != nil {
+			log.Errorf("writing missing packages report failed: %v", err)
+		}
+		return out, fmt.Errorf("one or more requested packages not found. See list in %s", report)
+	}
 	return out, nil
+}
+
+// WriteArrayToFile writes the contents of arr to a text file.
+// The file will have the given title as the first line, followed by each element of arr on a new line.
+// The filename will be prefixed with the current date and time in "YYYYMMDD_HHMMSS_" format.
+func WriteArrayToFile(arr []string, title string) (string, error) {
+	now := time.Now()
+	filename := filepath.Join("builds", fmt.Sprintf("%s_%s.txt", strings.ReplaceAll(title, " ", "_"), now.Format("20060102_150405")))
+	file, err := os.Create(filename)
+	if err != nil {
+		return "", fmt.Errorf("creating file: %w", err)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(title + ":\n")
+	if err != nil {
+		return "", fmt.Errorf("writing title: %w", err)
+	}
+
+	for _, line := range arr {
+		_, err := file.WriteString(line + "\n")
+		if err != nil {
+			return "", fmt.Errorf("writing line: %w", err)
+		}
+	}
+
+	return filename, nil
 }
 
 func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]string, error) {

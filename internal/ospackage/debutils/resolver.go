@@ -209,7 +209,7 @@ func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, r
 // matched) and the full list of all PackageInfos from the repo, and
 // returns the minimal closure of PackageInfos needed to satisfy all Requires.
 func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospackage.PackageInfo, error) {
-
+	log := logger.Logger()
 	// Build maps for fast lookup
 	byNameVer := make(map[string]ospackage.PackageInfo, len(all))
 	byProvides := make(map[string]ospackage.PackageInfo)
@@ -265,6 +265,10 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 
 	result := make([]ospackage.PackageInfo, 0)
 
+	// Track parent->child relationships
+	var parentChildPairs []string
+	gotMissingPkg := false
+
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
@@ -287,13 +291,16 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 
 			candidates := findAllCandidates(depName, all)
 			if len(candidates) >= 1 {
-
 				// Pick the candidate using the resolver and add it to the queue
 				chosenCandidate, err := resolveMultiCandidates(cur, candidates)
 				if err != nil {
-					return nil, fmt.Errorf("failed to resolve multiple candidates for dependency %q of package %q: %v", depName, cur.Name, err)
+					gotMissingPkg = true
+					parentChildPairs = append(parentChildPairs, cur.Name+"->"+depName+"(missing)")
+					log.Warnf("failed to resolve multiple candidates for dependency %q of package %q: %v", depName, cur.Name, err)
+					continue
 				}
 				queue = append(queue, chosenCandidate)
+				parentChildPairs = append(parentChildPairs, cur.Name+"->"+chosenCandidate.Name)
 				continue
 			}
 
@@ -319,13 +326,27 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 				}
 				if latestProv != nil {
 					queue = append(queue, *latestProv)
+					parentChildPairs = append(parentChildPairs, cur.Name+"->"+latestProv.Name)
 				} else {
 					queue = append(queue, provPkg)
+					parentChildPairs = append(parentChildPairs, cur.Name+"->"+provPkg.Name)
 				}
 			} else {
-				return nil, fmt.Errorf("dependency %q required by %q not found in repo", depName, cur.Name)
+				gotMissingPkg = true
+				parentChildPairs = append(parentChildPairs, cur.Name+"->"+depName+"(missing)")
+				log.Warnf("dependency %q required by %q not found in repo", depName, cur.Name)
 			}
 		}
+	}
+
+	// check missing dep and write report
+	if gotMissingPkg {
+		cleanDep := BuildDependencyChains(parentChildPairs)
+		report, err := WriteArrayToFile(cleanDep, "Missing Requested Dependencies")
+		if err != nil {
+			log.Errorf("writing missing dependencies report failed: %v", err)
+		}
+		return nil, fmt.Errorf("one or more requested dependencies not found. See list in %s", report)
 	}
 
 	// Sort result by package name for determinism
@@ -334,6 +355,59 @@ func ResolvePackageInfos(requested []ospackage.PackageInfo, all []ospackage.Pack
 	})
 
 	return result, nil
+}
+
+func BuildDependencyChains(parentChildPairs []string) []string {
+	// Build a map: parent -> list of children
+	depMap := make(map[string][]string)
+	// Track all children to find roots
+	children := make(map[string]struct{})
+	for _, pair := range parentChildPairs {
+		pair = strings.TrimSpace(pair)
+		parts := strings.Split(pair, "->")
+		if len(parts) != 2 {
+			continue
+		}
+		parent := strings.TrimSpace(parts[0])
+		child := strings.TrimSpace(parts[1])
+		depMap[parent] = append(depMap[parent], child)
+		children[child] = struct{}{}
+	}
+
+	// Find roots (parents that are not children)
+	roots := []string{}
+	for parent := range depMap {
+		if _, isChild := children[parent]; !isChild {
+			roots = append(roots, parent)
+		}
+	}
+
+	// Build chains (DFS for each root)
+	var chains []string
+	var visit func(cur string, chain string)
+	visit = func(cur string, chain string) {
+		childrenList, ok := depMap[cur]
+		if !ok || len(childrenList) == 0 {
+			chains = append(chains, chain)
+			return
+		}
+		for _, child := range childrenList {
+			visit(child, chain+"->"+child)
+		}
+	}
+
+	for _, root := range roots {
+		visit(root, root)
+	}
+
+	var missingChains []string
+	for _, chain := range chains {
+		if strings.Contains(chain, "(missing)") {
+			missingChains = append(missingChains, chain)
+		}
+	}
+
+	return missingChains
 }
 
 func getFullUrl(filePath string, baseUrl string) (string, error) {
