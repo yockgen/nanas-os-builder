@@ -37,8 +37,8 @@ func TestUpdateLocalDebRepo_ArchitectureMapping(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"dpkg-scanpackages": {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "dpkg-scanpackages", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -70,8 +70,8 @@ func TestUpdateLocalDebRepo_DirectoryCreation(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"dpkg-scanpackages": {"override-test\n", fmt.Errorf("command not found")},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "dpkg-scanpackages", Output: "override-test\n", Error: fmt.Errorf("command not found")},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -96,8 +96,8 @@ func TestUpdateLocalDebRepo_ExistingPackagesGz(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"dpkg-scanpackages": {"override-test\n", fmt.Errorf("command not found")},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "dpkg-scanpackages", Output: "override-test\n", Error: fmt.Errorf("command not found")},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -168,9 +168,9 @@ func TestInstallDebPkg_ParameterValidation(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"mmdebstrap": {"override-test\n", fmt.Errorf("command not found")},
-		"rm":         {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "mmdebstrap", Output: "override-test\n", Error: fmt.Errorf("command not found")},
+		{Pattern: "rm", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -198,9 +198,9 @@ func TestInstallDebPkg_MissingLocalRepoConfig(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"mmdebstrap": {"override-test\n", fmt.Errorf("command not found")},
-		"rm":         {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "mmdebstrap", Output: "override-test\n", Error: fmt.Errorf("command not found")},
+		{Pattern: "rm", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -248,10 +248,10 @@ func TestInstallDebPkg_ValidParameters(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"mount":      {"override-test\n", fmt.Errorf("failed to mount")},
-		"mmdebstrap": {"override-test\n", fmt.Errorf("command not found")},
-		"rm":         {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "mount", Output: "override-test\n", Error: fmt.Errorf("failed to mount")},
+		{Pattern: "mmdebstrap", Output: "override-test\n", Error: fmt.Errorf("command not found")},
+		{Pattern: "rm", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -295,11 +295,11 @@ func TestInstallDebPkg_ChrootEnvCreation(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"mount":      {"override-test\n", nil},
-		"umount":     {"override-test\n", nil},
-		"mmdebstrap": {"override-test\n", fmt.Errorf("command not found")},
-		"rm":         {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "mount", Output: "override-test\n", Error: nil},
+		{Pattern: "umount", Output: "override-test\n", Error: nil},
+		{Pattern: "mmdebstrap", Output: "override-test\n", Error: fmt.Errorf("command not found")},
+		{Pattern: "rm", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -343,11 +343,11 @@ func TestDebInstaller_PackageListFormatting(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"mount":      {"override-test\n", nil},
-		"umount":     {"override-test\n", nil},
-		"mmdebstrap": {"override-test\n", fmt.Errorf("command not found")},
-		"rm":         {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "mount", Output: "override-test\n", Error: nil},
+		{Pattern: "umount", Output: "override-test\n", Error: nil},
+		{Pattern: "mmdebstrap", Output: "override-test\n", Error: fmt.Errorf("command not found")},
+		{Pattern: "rm", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -366,8 +366,8 @@ func TestUpdateLocalDebRepo_EmptyRepoPath(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"dpkg-scanpackages": {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "dpkg-scanpackages", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -404,9 +404,9 @@ func TestInstallDebPkg_RepoPathConstant(t *testing.T) {
 
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	mockExpectedOutput := map[string][]interface{}{
-		"mount": {"override-test\n", fmt.Errorf("failed to mount")},
-		"rm":    {"override-test\n", nil},
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "mount", Output: "override-test\n", Error: fmt.Errorf("failed to mount")},
+		{Pattern: "rm", Output: "override-test\n", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
