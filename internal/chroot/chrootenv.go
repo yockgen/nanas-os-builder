@@ -383,7 +383,20 @@ func (chrootEnv *ChrootEnv) TdnfInstallPackage(packageName, installRoot string, 
 	return nil
 }
 
+func CleanDebName(packageName string) string {
+	packageName = strings.Replace(packageName, "_", "=", 1)
+	if idx := strings.LastIndex(packageName, "_"); idx != -1 {
+		archTag := packageName[idx+1:]
+		switch archTag {
+		case "amd64", "arm64", "all":
+			packageName = packageName[:idx]
+		}
+	}
+	return packageName
+}
+
 func (chrootEnv *ChrootEnv) AptInstallPackage(packageName, installRoot string, repoSrcList []string) error {
+	packageName = CleanDebName(packageName)
 	installCmd := fmt.Sprintf("apt-get install -y %s", packageName)
 
 	if len(repoSrcList) > 0 {
