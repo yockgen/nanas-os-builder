@@ -5,13 +5,22 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+
+	"github.com/open-edge-platform/image-composer/internal/utils/logger"
+	"github.com/ulikunitz/xz"
 )
 
 func Decompress(inFile string, outFile string) ([]string, error) {
+	log := logger.Logger()
+	if filepath.Ext(inFile) == ".xz" {
+		return DecompressXZ(inFile, outFile)
+	}
 
 	gzFile, err := os.Open(inFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open gz file: %v", err)
+		log.Debugf("getting user packages failed: %v", err)
+		return nil, fmt.Errorf("failed to open gz file: %w", err)
 	}
 	defer gzFile.Close()
 
@@ -29,6 +38,36 @@ func Decompress(inFile string, outFile string) ([]string, error) {
 	defer gzReader.Close()
 
 	_, err = io.Copy(outDecompressed, gzReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress file: %v", err)
+	}
+
+	return []string{decompressedFile}, nil
+}
+
+func DecompressXZ(inFile string, outFile string) ([]string, error) {
+	log := logger.Logger()
+
+	xzFile, err := os.Open(inFile)
+	if err != nil {
+		log.Debugf("getting user packages failed: %v", err)
+		return nil, fmt.Errorf("failed to open xz file: %w", err)
+	}
+	defer xzFile.Close()
+
+	decompressedFile := outFile
+	outDecompressed, err := os.Create(decompressedFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create decompressed file: %v", err)
+	}
+	defer outDecompressed.Close()
+
+	xzReader, err := xz.NewReader(xzFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create xz reader: %v", err)
+	}
+
+	_, err = io.Copy(outDecompressed, xzReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decompress file: %v", err)
 	}

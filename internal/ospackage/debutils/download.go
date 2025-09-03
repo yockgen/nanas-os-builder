@@ -93,12 +93,16 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 		baseURL := repoItem.url
 		pkey := repoItem.pkey
 		archs := Architecture + ",all"
+		releaseNm := "Release"
 		for _, arch := range strings.Split(archs, ",") {
 			package_list_url := GetPackagesNames(baseURL, codename, arch)
+			if package_list_url == "" {
+				continue // No valid package list found (packages.gz/packages.xz) for this arch, repo not exist
+			}
 			repo := RepoConfig{
 				PkgList:      package_list_url,
-				ReleaseFile:  fmt.Sprintf("%s/dists/%s/Release", baseURL, codename),
-				ReleaseSign:  fmt.Sprintf("%s/dists/%s/Release.gpg", baseURL, codename),
+				ReleaseFile:  fmt.Sprintf("%s/dists/%s/%s", baseURL, codename, releaseNm),
+				ReleaseSign:  fmt.Sprintf("%s/dists/%s/%s.gpg", baseURL, codename, releaseNm),
 				PkgPrefix:    baseURL,
 				Name:         id,
 				GPGCheck:     true,
@@ -288,7 +292,7 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	// Fetch the entire user repos package list
 	userpkg, err := UserPackages()
 	if err != nil {
-		log.Warnf("getting user packages failed: %w", err)
+		log.Debugf("getting user packages failed: %v", err)
 		return downloadPkgList, fmt.Errorf("user package fetch failed: %w", err)
 	}
 	all = append(all, userpkg...)

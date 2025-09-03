@@ -35,6 +35,7 @@ func VerifyPackagegz(relPath string, pkggzPath string, arch string) (bool, error
 
 	// Get expected checksum from Release file
 	pkgPathSrch := fmt.Sprintf("main/binary-%s/%s", arch, baseFile)
+	log.Infof("Searching for %s in Release file %s", pkgPathSrch, relPath)
 	checksum, err := findChecksumInRelease(relPath, "SHA256", pkgPathSrch)
 	log.Infof("Checksum from Release file (%s): %s Err:%s", relPath, checksum, err)
 	if err != nil {

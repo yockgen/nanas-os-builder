@@ -84,6 +84,7 @@ func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, r
 	}
 
 	// verify the sham256 checksum of the Packages.gz file
+	log.Infof("verifying checksum of package metadata file %s %s", baseURL, localPkggzFile)
 	pkggzVryResult, err := VerifyPackagegz(localReleaseFile, localPkggzFile, arch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify pkg file: %w", err)
@@ -92,24 +93,22 @@ func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, r
 		return nil, fmt.Errorf("package file verification failed")
 	}
 
-	// Getting sha256sum of the Packages.gz file from the release file
-	// and verifying it with the local Packages.gz file
-	// localPkgMetaFile := filepath.Join(pkgMetaDir, filepath.Base(pkggz))
-	localPkgMetaFile := filepath.Join(pkgMetaDir, "Packages.gz")
-	log.Infof("localPkgMetaFile: %s", localPkgMetaFile)
-
-	//Decompress the Packages.gz file
-	// The decompressed file will be named Packages (without .gz)
-	PkgMetaFile := pkgMetaDir + "/Packages.gz"
+	//Decompress the Packages (xz or gz) file
+	// The decompressed file will be named as Packages
+	PkgMetaFile := filepath.Join(pkgMetaDir, filepath.Base(pkggz))
 	pkgMetaFileNoExt := filepath.Join(filepath.Dir(PkgMetaFile), strings.TrimSuffix(filepath.Base(PkgMetaFile), filepath.Ext(PkgMetaFile)))
+	log.Infof("decompressing package metadata file %s to %s", PkgMetaFile, pkgMetaFileNoExt)
 
 	files, err := Decompress(PkgMetaFile, pkgMetaFileNoExt)
 	if err != nil {
 		return []ospackage.PackageInfo{}, fmt.Errorf("failed package decompress: %w", err)
 	}
-	log.Infof("decompressed files: %w", files)
+	log.Infof("decompressed files: %v", files)
 
 	//Parse the decompressed file
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no decompressed files found")
+	}
 	f, err := os.Open(files[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to open decompressed file: %w", err)
