@@ -16,7 +16,7 @@ import (
 // CustomMockExecutor creates signed files during sbsign operations
 type CustomMockExecutor struct {
 	mockCommands []shell.MockCommand
-	t           *testing.T
+	t            *testing.T
 }
 
 func (c *CustomMockExecutor) ExecCmd(cmdStr string, sudo bool, chrootPath string, envVal []string) (string, error) {
@@ -96,7 +96,7 @@ func TestSignImage_NoSecureBootKeys(t *testing.T) {
 
 func TestSignImage_MissingUKIFile(t *testing.T) {
 	installRoot := t.TempDir()
-	
+
 	// Store original executor and restore at the end
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -153,7 +153,7 @@ func TestSignImage_MissingUKIFile(t *testing.T) {
 
 func TestSignImage_MissingBootloaderFile(t *testing.T) {
 	installRoot := t.TempDir()
-	
+
 	// Store original executor and restore at the end
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -196,11 +196,11 @@ func TestSignImage_MissingBootloaderFile(t *testing.T) {
 		{Pattern: `sbsign --key .* --cert .* --output .*/linux\.efi\.signed .*linux\.efi`, Output: "UKI signing successful"},
 		{Pattern: `sbsign --key .* --cert .* --output .*/BOOTX64\.EFI\.signed .*BOOTX64\.EFI`, Error: errors.New("sbsign: failed to open BOOTX64.EFI")},
 	}
-	
+
 	// Use CustomMockExecutor to create UKI signed file
 	executor := &CustomMockExecutor{
 		mockCommands: mockCommands,
-		t:           t,
+		t:            t,
 	}
 	shell.Default = executor
 
@@ -335,7 +335,7 @@ func TestConfigHelperMethods(t *testing.T) {
 // Test successful signing flow with mocked sbsign commands
 func TestSignImage_SuccessfulSigning(t *testing.T) {
 	installRoot := t.TempDir()
-	
+
 	// Store original executor and restore at the end
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -383,10 +383,10 @@ func TestSignImage_SuccessfulSigning(t *testing.T) {
 		{Pattern: `sbsign --key .* --cert .* --output .*/linux\.efi\.signed .*linux\.efi`, Output: "Signing successful"},
 		{Pattern: `sbsign --key .* --cert .* --output .*/BOOTX64\.EFI\.signed .*BOOTX64\.EFI`, Output: "Signing successful"},
 	}
-	
+
 	shell.Default = &CustomMockExecutor{
 		mockCommands: mockCommands,
-		t:           t,
+		t:            t,
 	}
 
 	template := &config.ImageTemplate{
@@ -410,7 +410,7 @@ func TestSignImage_SuccessfulSigning(t *testing.T) {
 // Test file validation error scenarios
 func TestSignImage_FileValidationErrors(t *testing.T) {
 	installRoot := t.TempDir()
-	
+
 	// Store original executor and restore at the end
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -464,11 +464,11 @@ func TestSignImage_FileValidationErrors(t *testing.T) {
 		{Pattern: `sbsign --key .* --cert .* --output .*/linux\.efi\.signed .*linux\.efi`, Output: "Signing successful"},
 		{Pattern: `sbsign --key .* --cert .* --output .*/BOOTX64\.EFI\.signed .*BOOTX64\.EFI`, Output: "Signing successful"},
 	}
-	
+
 	// Use CustomMockExecutor to create signed files so signing succeeds
 	executor := &CustomMockExecutor{
 		mockCommands: mockCommands,
-		t:           t,
+		t:            t,
 	}
 	shell.Default = executor
 
@@ -521,7 +521,7 @@ func TestSignImage_SbsignErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			installRoot := t.TempDir()
-			
+
 			// Store original executor and restore at the end
 			originalExecutor := shell.Default
 			defer func() { shell.Default = originalExecutor }()
@@ -568,7 +568,7 @@ func TestSignImage_SbsignErrors(t *testing.T) {
 			if tt.name == "bootloader signing fails" {
 				executor := &CustomMockExecutor{
 					mockCommands: tt.mockCommands,
-					t:           t,
+					t:            t,
 				}
 				shell.Default = executor
 			} else {

@@ -471,11 +471,11 @@ func TestImageOsGetImageVersionInfo(t *testing.T) {
 	defer os.RemoveAll(testDir)
 
 	testCases := []struct {
-		name           string
+		name             string
 		osReleaseContent string
-		targetOs       string
-		expectedVersion string
-		expectError     bool
+		targetOs         string
+		expectedVersion  string
+		expectError      bool
 	}{
 		{
 			name: "azure-linux with version",
@@ -792,10 +792,10 @@ func TestReplaceRootHashPH(t *testing.T) {
 // TestGetKernelVersionLogic tests kernel version extraction logic
 func TestGetKernelVersionLogic(t *testing.T) {
 	testCases := []struct {
-		name         string
-		fileList     []string
-		expected     string
-		expectError  bool
+		name        string
+		fileList    []string
+		expected    string
+		expectError bool
 	}{
 		{
 			name:        "standard kernel file",
@@ -859,9 +859,9 @@ func TestGetKernelVersionLogic(t *testing.T) {
 func TestImageIdFileFormat(t *testing.T) {
 	// Test the image ID content format logic
 	testCases := []struct {
-		name         string
-		buildDate    string
-		imageUUID    string
+		name      string
+		buildDate string
+		imageUUID string
 	}{
 		{
 			name:      "standard format",
@@ -875,7 +875,7 @@ func TestImageIdFileFormat(t *testing.T) {
 			// Test the image ID content format
 			expected := fmt.Sprintf("IMAGE_BUILD_DATE=%s\nIMAGE_UUID=%s\n", tc.buildDate, tc.imageUUID)
 			actual := fmt.Sprintf("IMAGE_BUILD_DATE=%s\nIMAGE_UUID=%s\n", tc.buildDate, tc.imageUUID)
-			
+
 			if actual != expected {
 				t.Errorf("Expected %s, got %s", expected, actual)
 			}
@@ -894,10 +894,10 @@ func TestImageIdFileFormat(t *testing.T) {
 // TestGetVerityRootHashParsing tests root hash extraction from veritysetup output
 func TestGetVerityRootHashParsing(t *testing.T) {
 	testCases := []struct {
-		name         string
-		output       string
-		expected     string
-		expectError  bool
+		name        string
+		output      string
+		expected    string
+		expectError bool
 	}{
 		{
 			name: "standard veritysetup output",
@@ -979,7 +979,7 @@ Hash algorithm:  sha256`,
 // TestNewImageOsEdgeCases tests edge cases for the constructor
 func TestNewImageOsEdgeCases(t *testing.T) {
 	template := createTestImageTemplate()
-	
+
 	testCases := []struct {
 		name        string
 		installRoot string
@@ -990,13 +990,13 @@ func TestNewImageOsEdgeCases(t *testing.T) {
 			name:        "nil chrootEnv",
 			installRoot: "/tmp/test",
 			chrootEnv:   nil,
-			expectError: true,  // Constructor will panic with nil chrootEnv
+			expectError: true, // Constructor will panic with nil chrootEnv
 		},
 		{
 			name:        "empty install root",
 			installRoot: "",
 			chrootEnv:   &chroot.ChrootEnv{},
-			expectError: true,  // Constructor should error on empty install root
+			expectError: true, // Constructor should error on empty install root
 		},
 	}
 
@@ -1019,12 +1019,12 @@ func TestNewImageOsEdgeCases(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return
 			}
-			
+
 			if imageOs == nil {
 				t.Error("Expected ImageOs instance but got nil")
 			}
@@ -1039,9 +1039,9 @@ func TestPackageOrderingEdgeCases(t *testing.T) {
 	t.Run("rpm with duplicates", func(t *testing.T) {
 		// Create a template with duplicate packages
 		template.SystemConfig.Packages = []string{"filesystem-base", "curl", "filesystem-base", "vim"}
-		
+
 		result := getRpmPkgInstallList(template)
-		
+
 		// The function groups duplicates together (filesystem packages first)
 		expected := []string{"filesystem-base", "filesystem-base", "curl", "vim"}
 		if !reflect.DeepEqual(result, expected) {
@@ -1052,9 +1052,9 @@ func TestPackageOrderingEdgeCases(t *testing.T) {
 	t.Run("deb with duplicates", func(t *testing.T) {
 		// Create a template with duplicate packages
 		template.SystemConfig.Packages = []string{"base-files", "curl", "base-files", "vim"}
-		
+
 		result := getDebPkgInstallList(template)
-		
+
 		// The function groups duplicates together (base-files first)
 		expected := []string{"base-files", "base-files", "curl", "vim"}
 		if !reflect.DeepEqual(result, expected) {
@@ -1066,7 +1066,7 @@ func TestPackageOrderingEdgeCases(t *testing.T) {
 // TestUpdateImageHostname tests hostname update functionality
 func TestUpdateImageHostname(t *testing.T) {
 	template := createTestImageTemplate()
-	
+
 	// Test the hostname update function (currently a stub that returns nil)
 	err := updateImageHostname("/tmp/test", template)
 	if err != nil {
@@ -1077,7 +1077,7 @@ func TestUpdateImageHostname(t *testing.T) {
 // TestUpdateImageNetwork tests network update functionality
 func TestUpdateImageNetwork(t *testing.T) {
 	template := createTestImageTemplate()
-	
+
 	// Test the network update function (currently a stub that returns nil)
 	err := updateImageNetwork("/tmp/test", template)
 	if err != nil {
@@ -1088,9 +1088,9 @@ func TestUpdateImageNetwork(t *testing.T) {
 // TestPrepareVeritySetupValidation tests the validation logic in prepareVeritySetup
 func TestPrepareVeritySetupValidation(t *testing.T) {
 	testCases := []struct {
-		name        string
-		partPair    string
-		expectError bool
+		name           string
+		partPair       string
+		expectError    bool
 		expectedDevice string
 	}{
 		{
@@ -1121,19 +1121,19 @@ func TestPrepareVeritySetupValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Test just the validation logic from prepareVeritySetup
 			parts := strings.Fields(tc.partPair)
-			
+
 			if len(parts) < 1 {
 				if !tc.expectError {
 					t.Errorf("Expected success but got validation error for partPair: %s", tc.partPair)
 				}
 				return
 			}
-			
+
 			if tc.expectError {
 				t.Errorf("Expected error but validation passed for partPair: %s", tc.partPair)
 				return
 			}
-			
+
 			device := parts[0]
 			if device != tc.expectedDevice {
 				t.Errorf("Expected device %s, got %s", tc.expectedDevice, device)
@@ -1144,15 +1144,15 @@ func TestPrepareVeritySetupValidation(t *testing.T) {
 
 // TestStubFunctionsCoverage tests the simple stub functions for coverage
 func TestStubFunctionsCoverage(t *testing.T) {
-template := createTestImageTemplate()
-testDir := "/tmp/test-stubs"
+	template := createTestImageTemplate()
+	testDir := "/tmp/test-stubs"
 
-t.Run("updateImageHostname", func(t *testing.T) {
-err := updateImageHostname(testDir, template)
-if err != nil {
-t.Errorf("updateImageHostname should return nil, got: %v", err)
-}
-})
+	t.Run("updateImageHostname", func(t *testing.T) {
+		err := updateImageHostname(testDir, template)
+		if err != nil {
+			t.Errorf("updateImageHostname should return nil, got: %v", err)
+		}
+	})
 
 	t.Run("updateImageNetwork", func(t *testing.T) {
 		err := updateImageNetwork(testDir, template)
@@ -1284,7 +1284,7 @@ func TestGetKernelVersionWithMock(t *testing.T) {
 			defer os.RemoveAll(tempDir)
 
 			result, err := getKernelVersion(tempDir)
-			
+
 			if tt.expectedError && err == nil {
 				t.Error("Expected error but got none")
 			}
@@ -1350,7 +1350,7 @@ func TestGetVerityRootHashWithMock(t *testing.T) {
 			shell.Default = shell.NewMockExecutor(tt.mockCommands)
 
 			result, err := getVerityRootHash("/dev/loop0", "/dev/loop1")
-			
+
 			if tt.expectedError && err == nil {
 				t.Error("Expected error but got none")
 			}
@@ -1458,7 +1458,7 @@ func TestUpdateImageFstabWithMock(t *testing.T) {
 }
 
 func TestUpdateInitramfsWithMock(t *testing.T) {
-	// Save original shell  
+	// Save original shell
 	originalShell := shell.Default
 	defer func() { shell.Default = originalShell }()
 

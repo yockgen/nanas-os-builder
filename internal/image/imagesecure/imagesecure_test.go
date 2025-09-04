@@ -14,11 +14,11 @@ import (
 
 func TestConfigImageSecurity(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Store original executor and restore at the end
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	
+
 	tests := []struct {
 		name         string
 		installRoot  string
@@ -234,20 +234,30 @@ func TestConfigImageSecurity(t *testing.T) {
 			etcDir := filepath.Join(tt.installRoot, "etc")
 			systemdDir := filepath.Join(etcDir, "systemd", "system")
 			usrBinDir := filepath.Join(tt.installRoot, "usr", "local", "bin")
-			
-			os.MkdirAll(etcDir, 0755)
-			os.MkdirAll(systemdDir, 0755)
-			os.MkdirAll(usrBinDir, 0755)
-			
+
+			if err := os.MkdirAll(etcDir, 0755); err != nil {
+				t.Fatalf("Failed to create etc directory: %v", err)
+			}
+			if err := os.MkdirAll(systemdDir, 0755); err != nil {
+				t.Fatalf("Failed to create systemd directory: %v", err)
+			}
+			if err := os.MkdirAll(usrBinDir, 0755); err != nil {
+				t.Fatalf("Failed to create usr/local/bin directory: %v", err)
+			}
+
 			// Create empty fstab file
 			fstabPath := filepath.Join(etcDir, "fstab")
-			os.WriteFile(fstabPath, []byte(""), 0644)
-			
+			if err := os.WriteFile(fstabPath, []byte(""), 0644); err != nil {
+				t.Fatalf("Failed to create fstab file: %v", err)
+			}
+
 			// Create tmp directory for temp files (used by file.Append)
 			tmpDir := "./tmp"
-			os.MkdirAll(tmpDir, 0755)
+			if err := os.MkdirAll(tmpDir, 0755); err != nil {
+				t.Fatalf("Failed to create tmp directory: %v", err)
+			}
 			defer os.RemoveAll(tmpDir)
-			
+
 			shell.Default = shell.NewMockExecutor(tt.mockCommands)
 
 			// Special handling for nil template test to catch panic
@@ -277,11 +287,11 @@ func TestConfigImageSecurity(t *testing.T) {
 // Test error cases with failing commands
 func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	// Store original executor and restore at the end
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
-	
+
 	tests := []struct {
 		name         string
 		installRoot  string
@@ -384,20 +394,30 @@ func TestConfigImageSecurity_ErrorCases(t *testing.T) {
 			etcDir := filepath.Join(tt.installRoot, "etc")
 			systemdDir := filepath.Join(etcDir, "systemd", "system")
 			usrBinDir := filepath.Join(tt.installRoot, "usr", "local", "bin")
-			
-			os.MkdirAll(etcDir, 0755)
-			os.MkdirAll(systemdDir, 0755)
-			os.MkdirAll(usrBinDir, 0755)
-			
+
+			if err := os.MkdirAll(etcDir, 0755); err != nil {
+				t.Fatalf("Failed to create etc directory: %v", err)
+			}
+			if err := os.MkdirAll(systemdDir, 0755); err != nil {
+				t.Fatalf("Failed to create systemd directory: %v", err)
+			}
+			if err := os.MkdirAll(usrBinDir, 0755); err != nil {
+				t.Fatalf("Failed to create usr/local/bin directory: %v", err)
+			}
+
 			// Create empty fstab file
 			fstabPath := filepath.Join(etcDir, "fstab")
-			os.WriteFile(fstabPath, []byte(""), 0644)
-			
+			if err := os.WriteFile(fstabPath, []byte(""), 0644); err != nil {
+				t.Fatalf("Failed to create fstab file: %v", err)
+			}
+
 			// Create tmp directory for temp files (used by file.Append)
 			tmpDir := "./tmp"
-			os.MkdirAll(tmpDir, 0755)
+			if err := os.MkdirAll(tmpDir, 0755); err != nil {
+				t.Fatalf("Failed to create tmp directory: %v", err)
+			}
 			defer os.RemoveAll(tmpDir)
-			
+
 			// Enhanced shell mock commands that might include file.Append commands if needed
 			shell.Default = shell.NewMockExecutor(tt.mockCommands)
 
