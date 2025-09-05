@@ -232,16 +232,13 @@ func ParseRepositoryMetadata(baseURL string, pkggz string, releaseFile string, r
 // returns the minimal closure of PackageInfos needed to satisfy all Requires.
 func ResolveDependencies(requested []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospackage.PackageInfo, error) {
 	log := logger.Logger()
+
 	// Build maps for fast lookup
 	byNameVer := make(map[string]ospackage.PackageInfo, len(all))
-	byProvides := make(map[string]ospackage.PackageInfo)
 	for _, pi := range all {
 		if pi.Version != "" {
 			key := fmt.Sprintf("%s=%s", pi.Name, pi.Version)
 			byNameVer[key] = pi
-		}
-		for _, prov := range pi.Provides {
-			byProvides[prov] = pi
 		}
 	}
 
@@ -255,40 +252,12 @@ func ResolveDependencies(requested []ospackage.PackageInfo, all []ospackage.Pack
 				continue
 			}
 		}
-		// Always pull the latest version for requested packages
-		var latest *ospackage.PackageInfo
-		for _, pkg := range all {
-			if pkg.Name == pi.Name {
-				if latest == nil {
-					tmp := pkg
-					latest = &tmp
-				} else {
-					cmp, err := compareDebianVersions(pkg.Version, latest.Version)
-					if err != nil {
-						return nil, fmt.Errorf("failed to compare versions: %w", err)
-					}
-					if cmp > 0 {
-						tmp := pkg
-						latest = &tmp
-					}
-				}
-			}
-		}
-		if latest != nil {
-			queue = append(queue, *latest)
-			continue
-		}
-		if provPkg, ok := byProvides[pi.Name]; ok {
-			queue = append(queue, provPkg)
-			continue
-		}
 		return nil, fmt.Errorf("requested package %q not in repo listing", pi.Name)
 	}
 
+	// depedencies resolution logic
 	result := make([]ospackage.PackageInfo, 0)
-
-	// Track parent->child relationships
-	var parentChildPairs [][]ospackage.PackageInfo
+	var parentChildPairs [][]ospackage.PackageInfo // Track parent->child relationships for reporting
 	gotMissingPkg := false
 
 	for len(queue) > 0 {
@@ -325,26 +294,6 @@ func ResolveDependencies(requested []ospackage.PackageInfo, all []ospackage.Pack
 				queue = append(queue, chosenCandidate)
 				AddParentChildPair(cur, chosenCandidate, &parentChildPairs)
 				continue
-			}
-
-			//if nothing found by name, try provides
-			if provPkg, ok := byProvides[depName]; ok {
-				prvPkgNm := provPkg.Name
-				candidates := findAllCandidates(prvPkgNm, all)
-				chosenCandidate, err := resolveMultiCandidates(cur, candidates)
-				if err != nil {
-					gotMissingPkg = true
-					AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
-					log.Warnf("failed to resolve multiple candidates for dependency %q of package %q: %w", depName, cur.Name, err)
-					continue
-				}
-				queue = append(queue, chosenCandidate)
-				AddParentChildPair(cur, chosenCandidate, &parentChildPairs)
-				continue
-			} else {
-				gotMissingPkg = true
-				AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
-				log.Warnf("dependency %q required by %q not found in repo", depName, cur.Name)
 			}
 		}
 	}
@@ -700,9 +649,21 @@ func ResolveTopPackageConflicts(want string, all []ospackage.PackageInfo) (ospac
 func findAllCandidates(depName string, all []ospackage.PackageInfo) []ospackage.PackageInfo {
 	var candidates []ospackage.PackageInfo
 
+	// First pass: look for exact name matches
 	for _, pi := range all {
 		if pi.Name == depName {
 			candidates = append(candidates, pi)
+		}
+	}
+
+	// If no direct matches found, search in Provides field
+	if len(candidates) == 0 {
+		for _, pi := range all {
+			for _, provided := range pi.Provides {
+				if provided == depName {
+					candidates = append(candidates, pi)
+				}
+			}
 		}
 	}
 

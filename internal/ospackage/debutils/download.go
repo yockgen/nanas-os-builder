@@ -185,6 +185,7 @@ func Resolve(req []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospack
 	// Resolve all the required dependencies for the initial seed of Debian packages
 	needed, err := ResolveDependencies(req, all)
 	if err != nil {
+		log.Debugf("resolving dependencies failed: %v", err)
 		return nil, fmt.Errorf("resolving dependencies failed: %w", err)
 	}
 
@@ -192,7 +193,7 @@ func Resolve(req []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospack
 	log.Infof("need a total of %d DEBs (including dependencies)", len(needed))
 
 	for _, pkg := range needed {
-		log.Debugf("-> %s", filepath.Base(pkg.URL))
+		log.Debugf("%s %s -> %s", pkg.Name, pkg.Version, filepath.Base(pkg.URL))
 	}
 
 	// Adding full packages to the pkgChecksum list
@@ -303,10 +304,6 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 		return downloadPkgList, fmt.Errorf("matching packages: %w", err)
 	}
 	log.Infof("matched a total of %d packages", len(req))
-
-	for _, pkg := range req {
-		log.Debugf("-> %s", filepath.Base(pkg.URL))
-	}
 
 	// Resolve the dependencies of the requested packages
 	needed, err := Resolve(req, all)
