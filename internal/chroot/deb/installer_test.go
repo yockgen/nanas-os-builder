@@ -314,7 +314,6 @@ func TestInstallDebPkg_ChrootEnvCreation(t *testing.T) {
 	if _, err = os.Stat(chrootEnvPath); os.IsNotExist(err) {
 		if _, err := shell.ExecCmd("mkdir -p "+chrootEnvPath, false, "", nil); err != nil {
 			t.Fatalf("Failed to create chroot environment directory: %v", err)
-			return
 		}
 	}
 }
