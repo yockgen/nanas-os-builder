@@ -94,7 +94,7 @@ func NewChrootBuilder(targetOs string, targetDist string, targetArch string) (*C
 
 	// Validate the target OS configuration before parsing
 	if err := ValidateOsConfigYAML(data); err != nil {
-		return nil, fmt.Errorf("arget OS config validation failed for %s: %w", targetOsConfigFile, err)
+		return nil, fmt.Errorf("target OS config validation failed for %s: %w", targetOsConfigFile, err)
 	}
 
 	targetOsConfigs, err := file.ReadFromYaml(targetOsConfigFile)
