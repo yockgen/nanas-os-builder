@@ -30,5 +30,23 @@ jobs:
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04 # v6.0.0
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Run zizmor 🌈
         run: uvx zizmor=="$ZIZMOR_VERSION" "$GITHUB_WORKSPACE" --format sarif > zizmor_scan_report.sarif
+
+      - name: Parse SARIF results
+        run: |
+          # Check if SARIF file has any results
+          RESULT_COUNT=$(jq '[.runs[].results] | add | length' zizmor_scan_report.sarif)
+          echo "Total security issues found: $RESULT_COUNT"
+          
+          if [ "$RESULT_COUNT" -eq 0 ]; then
+            echo "✅ No security issues found in GitHub Actions workflows"
+          else
+            echo "⚠️ Found $RESULT_COUNT security issue(s) in GitHub Actions workflows"
+            echo "Details:"
+            jq -r '.runs[].results[] | "- \(.ruleId): \(.message.text)"' zizmor_scan_report.sarif
+            exit 1
+          fi
