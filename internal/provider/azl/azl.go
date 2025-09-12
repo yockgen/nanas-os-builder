@@ -149,6 +149,7 @@ func (p *AzureLinux) installHostDependency() error {
 	var depedencyInfo = map[string]string{
 		"rpm":      "rpm",        // For the chroot env build RPM pkg installation
 		"mkfs.fat": "dosfstools", // For the FAT32 boot partition creation
+		"qemu-img": "qemu-utils", // For image file format conversion
 		"xorriso":  "xorriso",    // For ISO image creation
 		"sbsign":   "sbsigntool", // For the UKI image creation
 	}

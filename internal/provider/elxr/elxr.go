@@ -136,6 +136,7 @@ func (p *eLxr) installHostDependency() error {
 		"mmdebstrap":        "mmdebstrap",    // For the chroot env build
 		"mkfs.fat":          "dosfstools",    // For the FAT32 boot partition creation
 		"xorriso":           "xorriso",       // For ISO image creation
+		"qemu-img":          "qemu-utils",    // For image file format conversion
 		"ukify":             "systemd-ukify", // For the UKI image creation
 		"grub-mkstandalone": "grub-common",   // For ISO image UEFI Grub binary creation
 		"veritysetup":       "cryptsetup",    // For the veritysetup command
