@@ -50,7 +50,7 @@ systemConfig:
 
     # Example: Plain text with algorithm (development/testing only)
     - name: testuser
-      password: ""               # Do not commit realplaintext passwords
+      password: ""               # Do not commit real plaintext passwords
       # password: "<PLAIN_PASSWORD>"
       hash_algo: "sha512"        # or org-approved algorithm
 
