@@ -133,32 +133,68 @@ func (m *mockChrootEnv) AptInstallPackage(packageName, installRoot string, repoS
 	// Mock implementation: always succeed
 	return nil
 }
-
 func TestNewIsoMaker(t *testing.T) {
+	originalExecutor := shell.Default
+	defer func() { shell.Default = originalExecutor }()
+
+	mockCommands := []shell.MockCommand{
+		{Pattern: "mkdir", Output: "", Error: nil},
+		{Pattern: "sudo", Output: "", Error: nil},
+	}
+	shell.Default = shell.NewMockExecutor(mockCommands)
+
 	tests := []struct {
 		name        string
 		chrootEnv   chroot.ChrootEnvInterface
+		template    *config.ImageTemplate
 		expectError bool
+		errorMsg    string
 	}{
 		{
-			name:        "successful_creation",
-			chrootEnv:   &mockChrootEnv{},
+			name: "successful_creation",
+			chrootEnv: &mockChrootEnv{
+				chrootEnvRoot: func() string {
+					// Create a temp dir and ensure image build dir exists
+					tempDir, _ := os.MkdirTemp("", "isomaker-test")
+					imageBuildDir := filepath.Join(tempDir, "workspace", "imagebuild")
+					_ = os.MkdirAll(imageBuildDir, 0700)
+					return tempDir
+				}(),
+			},
+			template: &config.ImageTemplate{
+				Target: config.TargetInfo{
+					OS:   "ubuntu",
+					Dist: "jammy",
+					Arch: "x86_64",
+				},
+			},
 			expectError: false,
 		},
 		{
 			name:        "nil_chroot_env",
 			chrootEnv:   nil,
-			expectError: false, // Constructor doesn't validate nil
+			template:    &config.ImageTemplate{},
+			expectError: true,
+			errorMsg:    "chroot environment cannot be nil",
+		},
+		{
+			name:        "nil_template",
+			chrootEnv:   &mockChrootEnv{},
+			template:    nil,
+			expectError: true,
+			errorMsg:    "image template cannot be nil",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isoMaker, err := isomaker.NewIsoMaker(tt.chrootEnv)
+			isoMaker, err := isomaker.NewIsoMaker(tt.chrootEnv, tt.template)
 
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error, but got none")
+				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', but got: %v", tt.errorMsg, err)
 				}
 			} else {
 				if err != nil {
@@ -242,7 +278,15 @@ func TestIsoMaker_Init(t *testing.T) {
 				}
 			}()
 
-			isoMaker, err := isomaker.NewIsoMaker(chrootEnv)
+			isoMaker, err := isomaker.NewIsoMaker(chrootEnv, tt.template)
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error, but got none")
+				} else if tt.expectedError != "" && !strings.Contains(err.Error(), tt.expectedError) {
+					t.Errorf("Expected error containing '%s', but got: %v", tt.expectedError, err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("Failed to create IsoMaker: %v", err)
 			}
@@ -251,7 +295,7 @@ func TestIsoMaker_Init(t *testing.T) {
 			currentConfig.WorkDir = tempDir
 			config.SetGlobal(currentConfig)
 
-			err = isoMaker.Init(tt.template)
+			err = isoMaker.Init()
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error, but got none")
@@ -321,7 +365,7 @@ func TestSanitizeIsoLabel(t *testing.T) {
 				t.Fatalf("Failed to create chroot image build dir: %v", err)
 			}
 
-			isoMaker, err := isomaker.NewIsoMaker(chrootEnv)
+			isoMaker, err := isomaker.NewIsoMaker(chrootEnv, template)
 			if err != nil {
 				t.Fatalf("Failed to create IsoMaker: %v", err)
 			}
@@ -330,7 +374,7 @@ func TestSanitizeIsoLabel(t *testing.T) {
 			currentConfig.WorkDir = tempDir
 			config.SetGlobal(currentConfig)
 
-			if err := isoMaker.Init(template); err != nil {
+			if err := isoMaker.Init(); err != nil {
 				t.Fatalf("Failed to init IsoMaker: %v", err)
 			}
 
@@ -392,7 +436,7 @@ func TestArchToGrubFormat(t *testing.T) {
 				t.Fatalf("Failed to create chroot image build dir: %v", err)
 			}
 
-			isoMaker, err := isomaker.NewIsoMaker(chrootEnv)
+			isoMaker, err := isomaker.NewIsoMaker(chrootEnv, template)
 			if err != nil {
 				t.Fatalf("Failed to create IsoMaker: %v", err)
 			}
@@ -401,7 +445,7 @@ func TestArchToGrubFormat(t *testing.T) {
 			currentConfig.WorkDir = tempDir
 			config.SetGlobal(currentConfig)
 
-			if err := isoMaker.Init(template); err != nil {
+			if err := isoMaker.Init(); err != nil {
 				t.Fatalf("Failed to init IsoMaker: %v", err)
 			}
 
@@ -480,7 +524,7 @@ func TestGetInitrdTemplate(t *testing.T) {
 				t.Fatalf("Failed to create chroot image build dir: %v", err)
 			}
 
-			isoMaker, err := isomaker.NewIsoMaker(chrootEnv)
+			isoMaker, err := isomaker.NewIsoMaker(chrootEnv, tt.template)
 			if err != nil {
 				t.Fatalf("Failed to create IsoMaker: %v", err)
 			}
@@ -491,7 +535,7 @@ func TestGetInitrdTemplate(t *testing.T) {
 
 			// Since getInitrdTemplate is unexported, we test it indirectly
 			// through buildIsoInitrd which calls getInitrdTemplate
-			err = isoMaker.Init(tt.template)
+			err = isoMaker.Init()
 			if err != nil && !tt.expectError {
 				t.Errorf("Unexpected error during init: %v", err)
 			}
@@ -581,7 +625,7 @@ func TestIsoMaker_DownloadInitrdPkgs(t *testing.T) {
 				t.Fatalf("Failed to create chroot image build dir: %v", err)
 			}
 
-			isoMaker, err := isomaker.NewIsoMaker(chrootEnv)
+			isoMaker, err := isomaker.NewIsoMaker(chrootEnv, tt.template)
 			if err != nil {
 				t.Fatalf("Failed to create IsoMaker: %v", err)
 			}
@@ -590,7 +634,7 @@ func TestIsoMaker_DownloadInitrdPkgs(t *testing.T) {
 			currentConfig.WorkDir = tempDir
 			config.SetGlobal(currentConfig)
 
-			if err := isoMaker.Init(tt.template); err != nil {
+			if err := isoMaker.Init(); err != nil {
 				t.Fatalf("Failed to init IsoMaker: %v", err)
 			}
 
@@ -986,7 +1030,7 @@ func TestIsoMaker_BuildIsoImage_Integration(t *testing.T) {
 				os.Unsetenv("IMAGE_COMPOSER_CONFIG_DIR")
 			}()
 
-			isoMaker, err := isomaker.NewIsoMaker(chrootEnv)
+			isoMaker, err := isomaker.NewIsoMaker(chrootEnv, tt.template)
 			if err != nil {
 				t.Fatalf("Failed to create IsoMaker: %v", err)
 			}
@@ -995,12 +1039,12 @@ func TestIsoMaker_BuildIsoImage_Integration(t *testing.T) {
 			currentConfig.WorkDir = tempDir
 			config.SetGlobal(currentConfig)
 
-			err = isoMaker.Init(tt.template)
+			err = isoMaker.Init()
 			if err != nil {
 				t.Fatalf("Failed to initialize IsoMaker: %v", err)
 			}
 
-			err = isoMaker.BuildIsoImage(tt.template)
+			err = isoMaker.BuildIsoImage()
 
 			if tt.expectError {
 				if err == nil {
