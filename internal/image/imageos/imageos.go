@@ -667,6 +667,15 @@ func updateImageUsrGroup(installRoot string, template *config.ImageTemplate) err
 }
 
 func updateImageNetwork(installRoot string, template *config.ImageTemplate) error {
+	unitFilePath := filepath.Join(installRoot, "lib", "systemd", "system", "systemd-networkd.service")
+	if _, err := os.Stat(unitFilePath); os.IsNotExist(err) {
+		log.Warnf("systemd-networkd is not installed in %s, skipping enable", installRoot)
+		return nil
+	}
+	cmd := "systemctl enable --root=\"" + installRoot + "\" systemd-networkd"
+	if _, err := shell.ExecCmd(cmd, true, "", nil); err != nil {
+		return fmt.Errorf("failed to enable systemd-networkd: %w", err)
+	}
 	return nil
 }
 
