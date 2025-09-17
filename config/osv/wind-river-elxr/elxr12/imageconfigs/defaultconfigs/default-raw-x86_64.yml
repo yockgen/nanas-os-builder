@@ -83,6 +83,13 @@ systemConfig:
     - xterm
     - dracut
     - systemd-boot
+    - elxr-archive-keyring
+
+  additionalFiles:
+    - local: ../additionalfiles/dhcp.network
+      final: /etc/systemd/network/dhcp.network
+    - local: ../additionalfiles/elxr-aria.list
+      final: /etc/apt/sources.list.d/elxr-aria.list
 
   kernel:
     name: kernel
