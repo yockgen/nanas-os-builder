@@ -42,7 +42,7 @@ Before you compose an operating system image with the OS Image Composer tool, fo
 
 * `ukify`, which combines components -- typically a kernel, an initrd, and a UEFI boot stub -- to create a signed Unified Kernel Image (UKI), which is a PE binary that firmware executes to start an embedded Linux kernel.
 
-* `mmdebstrap`, which downloads, unpacks, and installs Debian packages to create a chroot. By using `apt`, it can resolve more than one mirror and resolve complex dependency relationships. 
+* `mmdebstrap`, which downloads, unpacks, and installs Debian packages to initialize a chroot. 
 
 ### Compose or Validate an Image
 
