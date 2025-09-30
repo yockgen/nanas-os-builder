@@ -71,17 +71,23 @@ build:
         echo "$COMMIT_SHA" > /tmp/commit_sha
     
     # Get build date in UTC
-    RUN date -u '+%Y-%m-%d' > /tmp/build_date
+    RUN BUILD_DATE=$(date -u '+%Y-%m-%d') && \
+        echo "$BUILD_DATE" > /tmp/build_date
     
-    RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
+    # Build with variables instead of cat substitution
+    RUN VERSION=$(cat /tmp/version) && \
+        COMMIT_SHA=$(cat /tmp/commit_sha) && \
+        BUILD_DATE=$(cat /tmp/build_date) && \
+        CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
         go build -trimpath -buildmode=pie -o build/os-image-composer \
             -ldflags "-s -w \
-                     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Version=$(cat /tmp/version)' \
+                     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Version=$VERSION' \
                      -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Toolname=Image-Composer' \
                      -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Organization=Open Edge Platform' \
-                     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.BuildDate=$(cat /tmp/build_date)' \
-                     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.CommitSHA=$(cat /tmp/commit_sha)'" \
+                     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.BuildDate=$BUILD_DATE' \
+                     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.CommitSHA=$COMMIT_SHA'" \
             ./cmd/os-image-composer
+            
     SAVE ARTIFACT build/os-image-composer AS LOCAL ./build/os-image-composer
 
 lint:
