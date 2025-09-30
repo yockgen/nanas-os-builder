@@ -190,9 +190,13 @@ func ResolvePackageInfos(
 
 // ParseRepositoryMetadata parses the repodata/primary.xml(.gz/.zst) file from a given base URL.
 func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, error) {
+	log := logger.Logger()
+
+	fullURL := strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(gzHref, "/")
+	log.Infof("Fetching and parsing repository metadata from %s", fullURL)
 
 	client := network.NewSecureHTTPClient()
-	resp, err := client.Get(baseURL + gzHref)
+	resp, err := client.Get(fullURL)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +251,7 @@ func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, e
 				// read the href and build full URL + infer Name (filename)
 				for _, a := range elem.Attr {
 					if a.Name.Local == "href" {
-						curInfo.URL = baseURL + a.Value
+						curInfo.URL = strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(a.Value, "/")
 						curInfo.Name = path.Base(a.Value)
 						break
 					}

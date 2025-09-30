@@ -99,14 +99,15 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 
 		repoMetaDataURL := GetRepoMetaDataURL(rpItx.URL, metadataXmlPath)
 		if repoMetaDataURL == "" {
-			log.Warnf("invalid repo metadata URL: %s/%s, skipping", rpItx.URL, metadataXmlPath)
-			continue
+			log.Errorf("invalid repo metadata URL: %s/%s, skipping", rpItx.URL, metadataXmlPath)
+			return nil, fmt.Errorf("invalid repo metadata URL: %s/%s", rpItx.URL, metadataXmlPath)
 		}
 
 		primaryXmlURL, err := FetchPrimaryURL(repoMetaDataURL)
 		if err != nil {
 			return nil, fmt.Errorf("fetching %s URL failed: %w", repoMetaDataURL, err)
 		}
+
 		userPkgs, err := ParseRepositoryMetadata(rpItx.URL, primaryXmlURL)
 		if err != nil {
 			return nil, fmt.Errorf("parsing user repo failed: %w", err)
@@ -114,12 +115,12 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 		allUserPackages = append(allUserPackages, userPkgs...)
 	}
 
-	// return allUserPackages, nil
+	return allUserPackages, nil
 
-	for _, pkg := range allUserPackages {
-		log.Debugf("rpm pkg -> %s %s %s", pkg.Name, pkg.Version, pkg.URL)
-	}
-	return []ospackage.PackageInfo{}, nil //fmt.Errorf("yockgen user package fetching not supported for rpm")
+	// for _, pkg := range allUserPackages {
+	// 	log.Debugf("rpm pkg -> %s %s %s", pkg.Name, pkg.Version, pkg.URL)
+	// }
+	// return []ospackage.PackageInfo{}, nil //fmt.Errorf("yockgen user package fetching not supported for rpm")
 }
 
 func MatchRequested(requests []string, all []ospackage.PackageInfo) ([]ospackage.PackageInfo, error) {
@@ -280,13 +281,14 @@ func DownloadPackages(pkgList []string, destDir, dotFile string) ([]string, erro
 	// Fetch the entire package list
 	all, err := Packages()
 	if err != nil {
-		return downloadPkgList, fmt.Errorf("getting packages: %v", err)
+		log.Errorf("base packages fetch failed: %v", err)
+		return downloadPkgList, fmt.Errorf("base package fetch failed: %v", err)
 	}
 
 	// Fetch the entire user repos package list
 	userpkg, err := UserPackages()
 	if err != nil {
-		log.Debugf("getting user packages failed: %v", err)
+		log.Errorf("getting user packages failed: %v", err)
 		return downloadPkgList, fmt.Errorf("user package fetch failed: %w", err)
 	}
 	all = append(all, userpkg...)
