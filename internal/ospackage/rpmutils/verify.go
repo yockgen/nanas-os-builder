@@ -23,7 +23,7 @@ type Result struct {
 
 // VerifyAll takes a slice of RPM file paths, verifies each one in parallel,
 // and returns a slice of results in the same order.
-func VerifyAll(paths []string, pubkeyPath string, workers int) []Result {
+func VerifyAll(paths []string, pubkeyPaths []string, workers int) []Result {
 	log := logger.Logger()
 
 	total := len(paths)
@@ -50,6 +50,7 @@ func VerifyAll(paths []string, pubkeyPath string, workers int) []Result {
 	)
 
 	// worker goroutines
+	pubkeyPath := pubkeyPaths[0] //todo: temporary change to support only one key
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
@@ -98,7 +99,7 @@ func VerifyAll(paths []string, pubkeyPath string, workers int) []Result {
 // verifyWithGoRpm uses go-rpm to GPG-check + MD5-check a single file.
 func verifyWithGoRpm(rpmPath, pubkeyPath string) error {
 
-	return nil // yockgen skip rpm verification for now
+	// return nil // yockgen skip rpm verification for now
 
 	// load the keyring
 	keyringFile, err := os.Open(pubkeyPath)

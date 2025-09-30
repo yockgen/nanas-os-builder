@@ -196,37 +196,119 @@ func isValidVersionFormat(s string) bool {
 	return false
 }
 
+// createTempGPGKeyFiles downloads multiple GPG keys from URLs and creates temporary files.
+// Returns the file paths and a cleanup function. The caller is responsible for calling cleanup.
+func createTempGPGKeyFiles(gpgKeyURLs []string) (keyPaths []string, cleanup func(), err error) {
+	log := logger.Logger()
+
+	if len(gpgKeyURLs) == 0 {
+		return nil, nil, fmt.Errorf("no GPG key URLs provided")
+	}
+
+	var tempFiles []*os.File
+	var filePaths []string
+
+	client := network.NewSecureHTTPClient()
+
+	// Download and create temp files for each GPG key
+	for i, gpgKeyURL := range gpgKeyURLs {
+		resp, err := client.Get(gpgKeyURL)
+		if err != nil {
+			// Cleanup any files created so far
+			for _, f := range tempFiles {
+				f.Close()
+				os.Remove(f.Name())
+			}
+			return nil, nil, fmt.Errorf("fetch GPG key %s: %w", gpgKeyURL, err)
+		}
+
+		keyBytes, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			// Cleanup any files created so far
+			for _, f := range tempFiles {
+				f.Close()
+				os.Remove(f.Name())
+			}
+			return nil, nil, fmt.Errorf("read GPG key body from %s: %w", gpgKeyURL, err)
+		}
+
+		log.Infof("fetched GPG key %d (%d bytes) from %s", i+1, len(keyBytes), gpgKeyURL)
+
+		// Create temp file with unique pattern
+		tmp, err := os.CreateTemp("", fmt.Sprintf("azurelinux-gpg-%d-*.asc", i))
+		if err != nil {
+			// Cleanup any files created so far
+			for _, f := range tempFiles {
+				f.Close()
+				os.Remove(f.Name())
+			}
+			return nil, nil, fmt.Errorf("create temp key file %d: %w", i, err)
+		}
+
+		if _, err := tmp.Write(keyBytes); err != nil {
+			tmp.Close()
+			os.Remove(tmp.Name())
+			// Cleanup any files created so far
+			for _, f := range tempFiles {
+				f.Close()
+				os.Remove(f.Name())
+			}
+			return nil, nil, fmt.Errorf("write key to temp file %d: %w", i, err)
+		}
+
+		tempFiles = append(tempFiles, tmp)
+		filePaths = append(filePaths, tmp.Name())
+	}
+
+	cleanup = func() {
+		for _, f := range tempFiles {
+			f.Close()
+			os.Remove(f.Name())
+		}
+	}
+
+	return filePaths, cleanup, nil
+}
+
 func Validate(destDir string) error {
 	log := logger.Logger()
 
-	client := network.NewSecureHTTPClient()
-	// read the GPG key from the repo config
-	resp, err := client.Get(RepoCfg.GPGKey)
-	if err != nil {
-		return fmt.Errorf("fetch GPG key %s: %w", RepoCfg.GPGKey, err)
-	}
-	defer resp.Body.Close()
+	// Collect all GPG key URLs (could be from RepoCfg and UserRepo)
+	var gpgKeyURLs []string
 
-	keyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read GPG key body: %w", err)
+	// Add main repo GPG key
+	if RepoCfg.GPGKey != "" {
+		gpgKeyURLs = append(gpgKeyURLs, RepoCfg.GPGKey)
 	}
-	log.Infof("fetched GPG key (%d bytes)", len(keyBytes))
-	log.Debugf("GPG key: %s\n", keyBytes)
 
-	// store in a temp file
-	tmp, err := os.CreateTemp("", "azurelinux-gpg-*.asc")
-	if err != nil {
-		return fmt.Errorf("create temp key file: %w", err)
+	//Add user repo GPG keys
+	for _, userRepo := range UserRepo {
+		if userRepo.PKey != "" {
+			gpgKeyURLs = append(gpgKeyURLs, userRepo.PKey)
+		}
+		log.Infof("yockgen user repo: %s", userRepo.PKey)
 	}
-	defer func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-	}()
 
-	if _, err := tmp.Write(keyBytes); err != nil {
-		return fmt.Errorf("write key to temp file: %w", err)
+	// Add user repo GPG keys
+	for _, userRepo := range UserRepo {
+		if userRepo.PKey != "" {
+			gpgKeyURLs = append(gpgKeyURLs, userRepo.PKey)
+		}
 	}
+
+	if len(gpgKeyURLs) == 0 {
+		return fmt.Errorf("no GPG keys configured for verification")
+	}
+
+	// Create temporary GPG key files
+	gpgKeyPaths, cleanup, err := createTempGPGKeyFiles(gpgKeyURLs)
+	if err != nil {
+		return fmt.Errorf("failed to create temp GPG key files: %w", err)
+	}
+	defer cleanup()
+
+	log.Infof("created %d temporary GPG key files for verification", len(gpgKeyPaths))
 
 	// get all RPMs in the destDir
 	rpmPattern := filepath.Join(destDir, "*.rpm")
@@ -240,7 +322,7 @@ func Validate(destDir string) error {
 	}
 
 	start := time.Now()
-	results := VerifyAll(rpmPaths, tmp.Name(), 4)
+	results := VerifyAll(rpmPaths, gpgKeyPaths, 4)
 	log.Infof("RPM verification took %s", time.Since(start))
 
 	// Check results
