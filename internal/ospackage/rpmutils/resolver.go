@@ -293,19 +293,59 @@ func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, e
 							section = "requires"
 
 						case inner.Name.Local == "entry" && inner.Name.Space == rpmNS:
-							// rpm:entry name="..."
-							var name string
+							// rpm:entry name="..." ver="..." rel="..." epoch="..." flags="..."
+							var name, version, release, epoch, flags string
 							for _, a := range inner.Attr {
-								if a.Name.Local == "name" {
+								switch a.Name.Local {
+								case "name":
 									name = a.Value
-									break
+								case "ver":
+									version = a.Value
+								case "rel":
+									release = a.Value
+								case "epoch":
+									epoch = a.Value
+								case "flags":
+									flags = a.Value
 								}
 							}
 							if name != "" && curInfo != nil {
 								if section == "provides" {
 									curInfo.Provides = append(curInfo.Provides, name)
 								} else if section == "requires" {
+									// Store the base name in Requires
 									curInfo.Requires = append(curInfo.Requires, name)
+
+									// Store version constraint with package name prefix in RequiresVer
+									if version != "" || release != "" || epoch != "" || flags != "" {
+										versionPart := ""
+										if epoch != "" {
+											versionPart = epoch + ":"
+										}
+										if version != "" {
+											versionPart += version
+										}
+										if release != "" {
+											versionPart += "-" + release
+										}
+
+										var versionConstraint string
+										if flags != "" && versionPart != "" {
+											// Convert flags to readable format (GE = >=, EQ = =, etc.)
+											operator := convertFlags(flags)
+											versionConstraint = fmt.Sprintf("%s%s%s", name, operator, versionPart)
+										} else if versionPart != "" {
+											// Version info but no operator, assume equality
+											versionConstraint = fmt.Sprintf("%s = %s", name, versionPart)
+										} else {
+											// Only package name
+											versionConstraint = name
+										}
+										curInfo.RequiresVer = append(curInfo.RequiresVer, versionConstraint)
+									} else {
+										// No version constraint, just store the package name
+										curInfo.RequiresVer = append(curInfo.RequiresVer, name)
+									}
 								}
 							}
 
@@ -385,6 +425,7 @@ func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, e
 			}
 		}
 	}
+
 	return infos, nil
 }
 
@@ -461,4 +502,22 @@ func GetRepoMetaDataURL(baseURL, repoMetaXmlPath string) string {
 		return ""
 	}
 	return repoMetaDataURL
+}
+
+// Helper function to convert RPM flags to readable operators
+func convertFlags(flags string) string {
+	switch flags {
+	case "EQ":
+		return "="
+	case "GE":
+		return ">="
+	case "LE":
+		return "<="
+	case "GT":
+		return ">"
+	case "LT":
+		return "<"
+	default:
+		return flags
+	}
 }
