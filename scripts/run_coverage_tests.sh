@@ -141,10 +141,15 @@ for GO_DIR in ${ALL_GO_DIRS}; do
         echo "DEBUG: TEST_LOG: ${TEST_LOG}" >&2
     fi
     
-    # Create directory structure for coverage file (use || true to prevent exit on error)
-    mkdir -p "$(dirname "${COVERAGE_FILE}")" 2>/dev/null || true
-    mkdir -p "$(dirname "${TEST_LOG}")" 2>/dev/null || true
-    
+    # Create directory structure for coverage file; fail with error if creation fails
+    if ! mkdir -p "$(dirname "${COVERAGE_FILE}")" 2>/dev/null; then
+        echo -e "${RED}ERROR: Failed to create directory for coverage file: $(dirname "${COVERAGE_FILE}")${NC}" >&2
+        exit 1
+    fi
+    if ! mkdir -p "$(dirname "${TEST_LOG}")" 2>/dev/null; then
+        echo -e "${RED}ERROR: Failed to create directory for test log: $(dirname "${TEST_LOG}")${NC}" >&2
+        exit 1
+    fi
     # Check if this directory has test files
     if echo "${TEST_DIRS}" | grep -q "^${GO_DIR}$"; then
         # Directory has tests - run them
