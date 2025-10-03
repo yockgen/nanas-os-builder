@@ -235,7 +235,7 @@ func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, e
 										if flags != "" && versionPart != "" {
 											// Convert flags to readable format (GE = >=, EQ = =, etc.)
 											operator := convertFlags(flags)
-											versionConstraint = fmt.Sprintf("(%s%s%s)", name, operator, versionPart)
+											versionConstraint = fmt.Sprintf("%s (%s%s)", name, operator, versionPart) // samuel (>=2.3)
 										} else if versionPart != "" {
 											// Version info but no operator, assume equality
 											versionConstraint = fmt.Sprintf("%s = %s", name, versionPart)
@@ -252,7 +252,7 @@ func ParseRepositoryMetadata(baseURL, gzHref string) ([]ospackage.PackageInfo, e
 							}
 
 						// some repos list <file> entries inside <format> without a namespace
-						case inner.Name.Local == "file" && inner.Name.Space == "":
+						case inner.Name.Local == "file" && inner.Name.Space != rpmNS:
 							if tok3, err := dec.Token(); err == nil {
 								if cd, ok := tok3.(xml.CharData); ok && curInfo != nil {
 									curInfo.Files = append(curInfo.Files, strings.TrimSpace(string(cd)))
@@ -613,7 +613,7 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 		}
 	}
 
-	// neededSet := make(map[string]struct{})
+	neededSet := make(map[string]struct{})
 	queue := make([]ospackage.PackageInfo, 0, len(requested))
 	for _, pi := range requested {
 		if pi.Version != "" {
@@ -626,14 +626,118 @@ func ResolveDependencies02(requested []ospackage.PackageInfo, all []ospackage.Pa
 		return nil, fmt.Errorf("requested package %q not in repo listing", pi.Name)
 	}
 
-	// display queue value
-	for i, pkg := range queue {
-		log.Infof("yockgen Queue[%d]: Name=%s, Version=%s, Arch=%s", i, pkg.Name, pkg.Version, pkg.Arch)
-	}
-
 	result := make([]ospackage.PackageInfo, 0)
 
+	//testing: start
+
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+
+		if _, seen := neededSet[cur.Name]; seen {
+			continue
+		}
+		neededSet[cur.Name] = struct{}{}
+		result = append(result, cur)
+
+		// Traverse dependencies
+		for _, dep := range cur.Requires {
+
+			// depName := cleanDependencyName(dep)
+			depName := dep
+			if depName == "" || neededSet[depName] != struct{}{} {
+				continue
+			}
+			if _, seen := neededSet[depName]; seen {
+				// Check if the new package can use the existing package. If it cannot, then error out; otherwise, continue.
+				// get the package from current queue based on name
+				existing := findAllCandidates(depName, queue)
+				if len(existing) > 0 {
+					// check if the existing package can satisfy the version requirement
+					_, err := resolveMultiCandidates(cur, existing)
+					if err != nil {
+						// get require version
+						var requiredVer string
+						for _, req := range cur.RequiresVer {
+							if strings.Contains(req, depName) {
+								requiredVer = req
+								break
+							}
+						}
+						return nil, fmt.Errorf("conflicting package dependencies: %s_%s requires %s, but %s_%s is to be installed", cur.Name, cur.Version, requiredVer, existing[0].Name, existing[0].Version)
+					}
+				}
+				continue
+			}
+
+			candidates := findAllCandidates(depName, all)
+			if len(candidates) >= 1 {
+				// Pick the candidate using the resolver and add it to the queue
+				chosenCandidate, err := resolveMultiCandidates(cur, candidates)
+				if err != nil {
+					// gotMissingPkg = true
+					// AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
+					log.Errorf("failed to resolve multiple candidates for dependency %q of package %q: %v", depName, cur.Name, err)
+					return nil, fmt.Errorf("failed to resolve multiple candidates for dependency %q of package %q: %v", depName, cur.Name, err)
+				}
+				queue = append(queue, chosenCandidate)
+				// AddParentChildPair(cur, chosenCandidate, &parentChildPairs)
+				continue
+			} else {
+				log.Errorf("no candidates found for dependency %q of package %q", depName, cur.Name)
+				// gotMissingPkg = true
+				// AddParentMissingChildPair(cur, depName+"(missing)", &parentChildPairs)
+				return nil, fmt.Errorf("no candidates found for dependency %q of package %q", depName, cur.Name)
+			}
+		}
+	}
+
+	// Sort result by package name for determinism
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
+
+	//testing: end
+
 	log.Infof("Successfully resolved %d packages from %d requested packages", len(result), len(requested))
-	// return result, nil
-	return nil, fmt.Errorf("yockgen: not implemented")
+	return result, nil
+	// return nil, fmt.Errorf("yockgen: not implemented")
+}
+
+func findAllCandidates(depName string, all []ospackage.PackageInfo) []ospackage.PackageInfo {
+	// log := logger.Logger()
+
+	var candidates []ospackage.PackageInfo
+
+	// First pass: look for exact name matches
+	for _, pi := range all {
+		if pi.Name == depName {
+			candidates = append(candidates, pi)
+		}
+	}
+
+	// If no direct matches found, search in Provides field
+	if len(candidates) == 0 {
+		for _, pi := range all {
+			for _, provided := range pi.Provides {
+				if provided == depName {
+					candidates = append(candidates, pi)
+				}
+			}
+		}
+	}
+
+	// If no direct matches found, search in Files field
+	if len(candidates) == 0 {
+		for _, pi := range all {
+			// log.Debugf("yockgen findAllCandidates: found %d candidates for %q %d", len(candidates), depName, len(pi.Files))
+			for _, file := range pi.Files {
+				if file == depName {
+					candidates = append(candidates, pi)
+				}
+			}
+		}
+	}
+
+	return candidates
 }
