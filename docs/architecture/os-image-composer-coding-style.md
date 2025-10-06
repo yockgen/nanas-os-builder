@@ -54,7 +54,8 @@ func isValidImageFormat(format string) bool {
 
 ### 2.1 Use gofmt
 
-All code must be formatted with `gofmt`. Set up your editor to run it automatically on save.
+All code must be formatted with `gofmt`. Set up your editor to run it
+automatically on save.
 
 ### 2.2 Line Length
 
@@ -604,7 +605,8 @@ Design interfaces that are focused and composable:
 
 #### Rule 1: Define Comprehensive Interfaces
 
-Create interfaces that define all operations a component needs, enabling complete mockability.
+Create interfaces that define all operations a component needs, enabling
+complete mockability.
 
 ```go
 // Good: Comprehensive interface defining all chroot operations
@@ -697,7 +699,8 @@ func (chrootEnv *ChrootEnv) GetTargetOsReleaseVersion() string {
 
 #### Rule 4: Interface Composition for Complex Dependencies
 
-When a component needs multiple interfaces, compose them rather than creating monolithic interfaces
+When a component needs multiple interfaces, compose them rather than creating
+monolithic interfaces
 
 #### Rule 5: Factory Pattern for Complex Construction
 

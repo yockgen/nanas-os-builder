@@ -21,7 +21,10 @@
 
 ## Overview of the Caching Mechanisms
 
-The OS Image Composer tool implements two complementary caching mechanisms to significantly improve build performance and reduce resource usage: a package cache and an image cache. This document explains how these caching systems work and how to manage them effectively.
+The OS Image Composer tool implements two complementary caching mechanisms to
+significantly improve build performance and reduce resource usage: a package
+cache and an image cache. This document explains how these caching systems work
+and how to manage them effectively.
 
 OS Image Composer uses a layered caching approach:
 
@@ -35,34 +38,47 @@ To find out how caching integrates with the build process, see
 
 ## Package Cache
 
-The package cache stores downloaded OS packages, such as .deb files for a Debian-based Linux distribution or .rpm files for a RPM-based distribution, to avoid downloading them again for future builds.
+The package cache stores downloaded OS packages, such as .deb files for a
+Debian-based Linux distribution or .rpm files for a RPM-based distribution, to
+avoid downloading them again for future builds.
 
 ### How the Package Cache Works
 
-The package cache is organized by package name, version, architecture, and source repository. Each package is stored only once, regardless of how many build specs use it. Timestamps track when each package was last used.
+The package cache is organized by package name, version, architecture, and
+source repository. Each package is stored only once, regardless of how many
+build specs use it. Timestamps track when each package was last used.
 
-When the build system needs to install a package, it checks the cache before downloading a package. If the package exists in the cache, it uses the cached version. If not, it downloads the package, adds it to the cache, and then uses it.
-
+When the build system needs to install a package, it checks the cache before
+downloading a package. If the package exists in the cache, it uses the cached
+version. If not, it downloads the package, adds it to the cache,
+and then uses it.
 
 ### Package Cache Benefits
 
 - Dramatically reduces build time for similar images.
 - Decreases network bandwidth usage.
 - Works even when build specifications change.
-- Enables you to build images without internet access if the packages were previously cached.
+- Enables you to build images without internet access if the packages were
+  previously cached.
 
 To find out how the build process uses the package cache, see
 [Packages Stage](./os-image-composer-build-process.md#2-packages-stage).
 
 ## Image Cache
 
-The image cache stores built OS images to skip the entire build process if an identical build specification has been built before.
+The image cache stores built OS images to skip the entire build process if an
+identical build specification has been built before.
 
 ### How the Image Cache Works
 
-Before building an image, the system generates a unique hash based on the entire build specification, and then it checks if an image with that hash exists in the cache. If it finds the hash, it copies the cached image to the requested output location. If it doesn't find the hash, it proceeds with the normal build process.
+Before building an image, the system generates a unique hash based on the
+entire build specification, and then it checks if an image with that hash
+exists in the cache. If it finds the hash, it copies the cached image to the
+requested output location. If it doesn't find the hash, it proceeds with the
+normal build process.
 
-If image caching is enabled, the newly built image is stored in the cache. The specification hash serves as the cache key.
+If image caching is enabled, the newly built image is stored in the cache.
+The specification hash serves as the cache key.
 
 ### Image Cache Benefits
 
@@ -127,16 +143,22 @@ flowchart TD
     class ComposeStage,ConfigurationStage stage;
 ```
 
-This approach maximizes performance: With the image cache, identical builds are instant; with the package cache, similar builds benefit from faster package installation.
+This approach maximizes performance: With the image cache, identical builds are
+instant; with the package cache, similar builds benefit from faster
+package installation.
 
-The approach also uses resources efficiently by minimizing bandwidth and managing disk space automatically. Because each mechanism can be enabled or disabled independently, you have the flexibility to customize the use of caches to your requirements.
+The approach also uses resources efficiently by minimizing bandwidth and
+managing disk space automatically. Because each mechanism can be enabled or
+disabled independently, you have the flexibility to customize the use of caches
+to your requirements.
 
 To find out how to control the behavior of the cache, see
 [Build Configuration Options](./os-image-composer-build-process.md#build-configuration-options).
 
 ## Managing the Caches with the CLI
 
-The OS Image Composer command-line tool includes commands to manage the caching systems.
+The OS Image Composer command-line tool includes commands to manage
+the caching systems.
 
 ### List Cached Content
 
@@ -200,11 +222,15 @@ See also:
 
 ## Best Practices
 
-1. **Clean the cache regularly**: Consider performing periodic cache cleaning in long-running environments by manually removing the cache directory content.
+1. **Clean the cache regularly**: Consider performing periodic cache cleaning
+   in long-running environments by manually removing the cache directory content.
 
-1. **Manage version control integration**: Consider clearing the image cache when major version control changes occur to ensure that images are rebuilt when repository content changes significantly.
+1. **Manage version control integration**: Consider clearing the image cache
+   when major version control changes occur to ensure that images are rebuilt
+   when repository content changes significantly.
 
-1. **Optimize for CI/CD**: In CI/CD environments, persist the cache between pipeline runs. Many CI systems support caching directories between jobs.
+1. **Optimize for CI/CD**: In CI/CD environments, persist the cache between
+   pipeline runs. Many CI systems support caching directories between jobs.
 
 See also:
 

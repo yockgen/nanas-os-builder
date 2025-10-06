@@ -1,8 +1,10 @@
 # OS Image Composer Architecture
 
 OS Image Composer is a generic toolkit to build operating system
-images from pre-built artifacts such as `rpm` and `deb` in order to support a range of
-common operating systems for the distributed edge. You can customize the content of the operating system to suit your requirements, applications, and workloads.
+images from pre-built artifacts such as `rpm` and `deb` in order to support
+a range of common operating systems for the distributed edge. You can customize
+the content of the operating system to suit your requirements, applications,
+and workloads.
 
 ## Table of Contents
 
@@ -21,21 +23,41 @@ common operating systems for the distributed edge. You can customize the content
 
 ## Supported Distributions
 
-The OS Image Composer tool will initially support the following Linux distributions:
+The OS Image Composer tool will initially support the following
+Linux distributions:
 
-- [Edge Microvisor Toolkit](https://github.com/open-edge-platform/edge-microvisor-toolkit) 3.0
+- [Edge Microvisor Toolkit](https://github.com/open-edge-platform/edge-microvisor-toolkit)
+  3.0
 - [Azure Linux](https://github.com/microsoft/azurelinux) 3.0
 - [Wind River eLxr](https://www.windriver.com/blog/Introducing-eLxr)
 
 ## Overview
 
-The OS Image Composer tool generates an image based on a user-customized YAML input file that defines the customizations for a supported OS distribution. Multiple operating systems are supported by the corresponding configuration files. And a set of default image config files per OS distribution helps you get rid of being trapped in the details of OS system configurations. The user input YAML file can be simply nothing configured or full detailed configurations. During the image generation, the final config JSON file is based on the default JSON config and updated according to the user-customized YAML file.
+The OS Image Composer tool generates an image based on a user-customized YAML
+input file that defines the customizations for a supported OS distribution.
+Multiple operating systems are supported by the corresponding configuration
+files. And a set of default image config files per OS distribution helps you
+get rid of being trapped in the details of OS system configurations. The user
+input YAML file can be simply nothing configured or full detailed
+configurations. During the image generation, the final config JSON file is
+based on the default JSON config and updated according to the user-customized
+YAML file.
 
-The pre-built artifacts such as those for `rpm` and `deb` come from their corresponding target operating system's remote repository. The OS Image Composer tool implemented the common abstracted package provider interface to fetch packages and solve dependencies from those remote package repositories. To download packages, the OS Image Composer tool securely fetches packages from the distribution-specific package repository and automatically resolves and installs dependencies.
+The pre-built artifacts such as those for `rpm` and `deb` come from their
+corresponding target operating system's remote repository. The OS Image
+Composer tool implemented the common abstracted package provider interface to
+fetch packages and solve dependencies from those remote package repositories.
+To download packages, the OS Image Composer tool securely fetches packages
+from the distribution-specific package repository and automatically resolves
+and installs dependencies.
 
-The runtime storage includes the isolated chroot build environment (the rootfs entry for the target operating system), which is the image-generation workspace, the package caches, and the image caches as well as the runtime configuration files and logs.
+The runtime storage includes the isolated chroot build environment (the rootfs
+entry for the target operating system), which is the image-generation workspace,
+the package caches, and the image caches as well as the runtime configuration
+files and logs.
 
-The supported output image types include raw images and ISO images for bare metal systems and virtual machines.
+The supported output image types include raw images and ISO images for bare
+metal systems and virtual machines.
 
 The following diagram shows the input and output of the OS Image Composer tool:
 
@@ -47,25 +69,41 @@ The following diagram shows the network context of the OS Image Composer tool:
 
 ![OS Image Composer Network Diagram](assets/os-image-composer-network-diagram.drawio.svg).
 
-The diagram illustrates how different components of the product's system architecture communicate with each other.
+The diagram illustrates how different components of the product's system
+architecture communicate with each other.
 
 ### Network Security Considerations
 
-The OS Image Composer tool downloads required packages using HTTP requests to the distribution specific package repos over TLS 1.2+ connections. Each of the package repos does server-side validation on the package download requests so it is expected that the system running the OS Image Composer tool is provisioned with a CA root chain.
+The OS Image Composer tool downloads required packages using HTTP requests to
+the distribution specific package repos over TLS 1.2+ connections. Each of the
+package repos does server-side validation on the package download requests so
+it is expected that the system running the OS Image Composer tool is provisioned
+with a CA root chain.
 
 ### Package Sign Verification
 
-When packages are downloaded, they are verified for integrity by using the GPG Public Keys and SHA256/MD5 checksum published at the package repositories.
+When packages are downloaded, they are verified for integrity by using the GPG
+Public Keys and SHA256/MD5 checksum published at the package repositories.
 
 ## Components Overview
 
-The following diagram outlines the high-level components of the OS Image Composer tool:
+The following diagram outlines the high-level components of
+the OS Image Composer tool:
 
 ![components high level view](assets/components.drawio.svg)
 
-The tools for composing an image are grouped under following components: **Provider**, **Chroot**, **Image**, **OsPackage**, and **Config**. For modularity, each group contains a set of the components for the OS Image Composer tool's functions.
+The tools for composing an image are grouped under following components:
+**Provider**, **Chroot**, **Image**, **OsPackage**, and **Config**.
+For modularity, each group contains a set of the components for
+the OS Image Composer tool's functions.
 
-The **provider** component takes data from *config* as its input, then calls **chroot**, **image** and **OsPackage** components to set up buidling the image. **Chroot** libraries are used to create ChrootEnv for building the OS Image. The **image** libraries provide the general functions for building OS images. The **OsPackage** libraries include utilities for handling debian and rpm packages. The **config** component contains configuration data for the image that will be created.
+The **provider** component takes data from *config* as its input, then calls
+**chroot**, **image** and **OsPackage** components to set up buidling the image.
+**Chroot** libraries are used to create ChrootEnv for building the OS Image.
+The **image** libraries provide the general functions for building OS images.
+The **OsPackage** libraries include utilities for handling debian and
+rpm packages. The **config** component contains configuration data for the image
+that will be created.
 
 ### Chroot
 
@@ -78,13 +116,17 @@ cached locally before the image is created.
 
 ![components - image](assets/components.drawio.image.svg)
 
-*Image* groups the libraries that generate the image; they are divided according to the generic processing flow. It creates the required raw or ISO images according to an image configuration JSON file.
+*Image* groups the libraries that generate the image; they are divided according
+to the generic processing flow. It creates the required raw or ISO images
+according to an image configuration JSON file.
 
 ### Config
 
 ![components - Config](assets/components.drawio.config.svg)
 
-The *config* component contains configuration data for the image that will be created. It serves as input data for the *Provider*, which builds the OS image according to that data.
+The *config* component contains configuration data for the image that will be
+created. It serves as input data for the *Provider*, which builds the OS image
+according to that data.
 
 <!--The host system should be running a validated and supported Linux distribution
 such as Ubuntu 24.04. The OS Image Composer tool implements all the common business
@@ -97,9 +139,15 @@ distribution-specific functionality from the core and common business logic.-->
 
 ![components - package](assets/components.drawio.OsPackage.svg)
 
-*Package* groups the libraries that provide the unified interface of the operating system vendors' remote package repositories. It analyzes given package lists and downloads all the packages and dependencies from the target operating system's remote package repository to a local cache.
+*Package* groups the libraries that provide the unified interface of the
+operating system vendors' remote package repositories. It analyzes given
+package lists and downloads all the packages and dependencies from the target
+operating system's remote package repository to a local cache.
 
-It also verifies signatures of the downloaded packages to ensure they are authenticated and from certified source. It also provides the unified interface to install the packages and the dependencies in the correct order into the image rootfs directory.
+It also verifies signatures of the downloaded packages to ensure they are
+authenticated and from certified source. It also provides the unified interface
+to install the packages and the dependencies in the correct order into the
+image rootfs directory.
 
 ## Operational Flow
 

@@ -1,6 +1,7 @@
 # Secure Boot Configuration Tutorial
 
-This guide walks you through setting up Secure Boot for your operating system images using the OS Image Composer tool. Follow each step carefully.
+This guide walks you through setting up Secure Boot for your operating system
+images using the OS Image Composer tool. Follow each step carefully.
 
 ## Prerequisites
 
@@ -24,7 +25,10 @@ openssl req -new -x509 -newkey rsa:3072 -sha384 -keyout DB.key -out DB.crt -days
 openssl x509 -outform DER -in DB.crt -out DB.cer
 ```
 
-NOTE: The signing keypair strength should align with the crypto implementation supported by the UEFI Secure boot implementation on a specific system. The recommendation is to test the support for `RSA3072SHA384` before moving to `RSA2048SHA256`.
+NOTE: The signing keypair strength should align with the crypto implementation
+supported by the UEFI Secure boot implementation on a specific system. The
+recommendation is to test the support for `RSA3072SHA384` before moving to
+`RSA2048SHA256`.
 
 **What you'll have:**
 
@@ -34,7 +38,8 @@ NOTE: The signing keypair strength should align with the crypto implementation s
 
 ## Step 2: Configure Your Template
 
-Edit your OS Image Composer template YAML file to include the Secure Boot configuration:
+Edit your OS Image Composer template YAML file to include the Secure Boot
+configuration:
 
 ```yaml
 # Add this section to your template
@@ -116,11 +121,13 @@ sudo qemu-system-x86_64 \
 
 Once you're in the UEFI setup menu, do the following.
 
-**Note:** Menu names vary by firmware. Look for similar options if the exact names differ.
+**Note:** Menu names vary by firmware. Look for similar options if the exact
+names differ.
 
 ### Navigate to Secure Boot
 
-1. Use arrow keys to find **"Device Manager"** or **"Secure Boot Configuration"**
+1. Use arrow keys to find **"Device Manager"** or
+   **"Secure Boot Configuration"**
 2. Look for **"Secure Boot"** or **"Security"** menu
 
 ### Enable Custom Mode
@@ -160,9 +167,12 @@ sudo dmesg | grep -i secure
 
 **Common Issues:**
 
-1. **Can't find keys in UEFI:** Ensure the EFI partition is mounted and files are in `/EFI/keys/`.
-2. **Secure Boot not enabled:** Verify you're in "Custom" mode, not "Standard" mode.
-3. **Boot fails after key enrollment:** Check that your image was built with the same keys.
+1. **Can't find keys in UEFI:** Ensure the EFI partition is mounted and files
+   are in `/EFI/keys/`.
+2. **Secure Boot not enabled:** Verify you're in "Custom" mode, not
+   "Standard" mode.
+3. **Boot fails after key enrollment:** Check that your image was built with
+   the same keys.
 
 **Recovery:**
 

@@ -1,6 +1,7 @@
 # General Build Prerequisites for Image Creation Tools
 
-This document describes the general dependencies for the image creation tools and the steps to install them.
+This document describes the general dependencies for the image creation tools
+and the steps to install them.
 
 ---
 
@@ -14,7 +15,8 @@ sudo apt install git python3 python3-cryptography python3-pefile python3-pillow 
   libelf-dev lz4 pkg-config meson ninja-build
 ```
 
-2. Clone the systemd repository for `ukify`, and then check out the version you want:
+2. Clone the systemd repository for `ukify`, and then check out the version
+   you want:
 
 ```bash
 git clone https://github.com/systemd/systemd.git
@@ -29,7 +31,8 @@ cd src/ukify
 sudo cp ukify.py /usr/local/bin/ukify
 ```
 
-4. For environments that require `ukify` in `/usr/bin` (e.g., OS Image Composer build systems), copy it to `/usr/bin`
+4. For environments that require `ukify` in `/usr/bin` (e.g., OS Image Composer
+   build systems), copy it to `/usr/bin`
 
 
 ```bash
@@ -59,7 +62,8 @@ wget http://archive.ubuntu.com/ubuntu/pool/universe/m/mmdebstrap/mmdebstrap_1.4.
 sudo dpkg -i mmdebstrap_1.4.3-6_all.deb
 ```
 
-3. If dpkg reports missing dependencies, you can try to automatically resolve them using this command:
+3. If dpkg reports missing dependencies, you can try to automatically resolve
+   them using this command:
 
 ```bash
 sudo apt --fix-broken install
