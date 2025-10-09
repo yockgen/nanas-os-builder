@@ -501,8 +501,8 @@ func comparePackageVersions(a, b string) (int, error) {
 	}
 
 	// If no prefix match, fall back to detailed comparison
-	// Split upstream_version and debian_revision at last hyphen
-	splitRevision := func(ver string) (upstream string, debian string) {
+	// Split version string into upstream version and release for RPMat last hyphen
+	splitRevision := func(ver string) (upstream string, revision string) {
 		if i := strings.LastIndex(ver, "-"); i >= 0 {
 			return ver[:i], ver[i+1:]
 		}

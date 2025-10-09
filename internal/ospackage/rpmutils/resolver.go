@@ -457,7 +457,7 @@ func ResolveDependencies(requested []ospackage.PackageInfo, all []ospackage.Pack
 		}
 	}
 
-	//clear required fields for all and requested
+	// Clear required fields for all and requested
 	for i := range all {
 		all[i].Requires = nil
 	}
@@ -506,7 +506,7 @@ func ResolveDependencies(requested []ospackage.PackageInfo, all []ospackage.Pack
 				continue
 			}
 
-			//check if already resolved
+			// Check if already resolved
 			// if _, seen := neededSet[depName]; seen {
 			if seen {
 				// ENHANCEMENT: Check version compatibility for already-resolved dependencies

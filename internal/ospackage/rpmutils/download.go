@@ -301,7 +301,7 @@ func Validate(destDir string) error {
 		gpgKeyURLs = append(gpgKeyURLs, RepoCfg.GPGKey)
 	}
 
-	//Add user repo GPG keys
+	// Add user repo GPG keys
 	for _, userRepo := range UserRepo {
 		if userRepo.PKey != "" {
 			gpgKeyURLs = append(gpgKeyURLs, userRepo.PKey)

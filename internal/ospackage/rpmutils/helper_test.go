@@ -639,3 +639,469 @@ func TestResolveMultiCandidates(t *testing.T) {
 		})
 	}
 }
+
+// TestExtractBaseRequirementAdvanced tests advanced cases for the extractBaseRequirement function
+func TestExtractBaseRequirementAdvanced(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple requirement",
+			input:    "bash",
+			expected: "bash",
+		},
+		{
+			name:     "requirement with version",
+			input:    "glibc >= 2.30",
+			expected: "glibc",
+		},
+		{
+			name:     "complex requirement with parentheses",
+			input:    "(libssl.so.1.1 >= 1.1.0)",
+			expected: "libssl.so.1.1",
+		},
+		{
+			name:     "requirement with 64bit suffix",
+			input:    "libpthread.so.0()(64bit)",
+			expected: "libpthread.so.0",
+		},
+		{
+			name:     "complex requirement with multiple conditions",
+			input:    "(gcc-c++ and make)",
+			expected: "gcc-c++",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "whitespace only",
+			input:    "   ",
+			expected: "",
+		},
+		{
+			name:     "requirement with complex versioning",
+			input:    "python3-devel >= 3.8.0",
+			expected: "python3-devel",
+		},
+		{
+			name:     "parentheses with spaces",
+			input:    "( openssl-libs )",
+			expected: "openssl-libs",
+		},
+		{
+			name:     "file path requirement",
+			input:    "/bin/sh",
+			expected: "/bin/sh",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractBaseRequirement(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractBaseRequirement(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestVersionRequirementEdgeCases tests edge cases in version requirement extraction
+func TestVersionRequirementEdgeCases(t *testing.T) {
+	tests := []struct {
+		name          string
+		reqVers       []string
+		depName       string
+		expectedOp    string
+		expectedVer   string
+		expectedFound bool
+	}{
+		{
+			name:          "Empty requirements list",
+			reqVers:       []string{},
+			depName:       "package",
+			expectedOp:    "",
+			expectedVer:   "",
+			expectedFound: false,
+		},
+		{
+			name:          "Malformed version requirement",
+			reqVers:       []string{"malformed requirement"},
+			depName:       "package",
+			expectedOp:    "",
+			expectedVer:   "",
+			expectedFound: false,
+		},
+		{
+			name:          "Version with special characters",
+			reqVers:       []string{"package (>= 1.0+build.123)"},
+			depName:       "package",
+			expectedOp:    ">=",
+			expectedVer:   "1.0+build.123",
+			expectedFound: true,
+		},
+		{
+			name:          "Multiple version constraints",
+			reqVers:       []string{"package (>= 1.0)", "package (<< 2.0)"},
+			depName:       "package",
+			expectedOp:    ">=",
+			expectedVer:   "1.0",
+			expectedFound: true,
+		},
+		{
+			name:          "Version with epoch",
+			reqVers:       []string{"package (= 2:1.0-1)"},
+			depName:       "package",
+			expectedOp:    "=",
+			expectedVer:   "2:1.0-1",
+			expectedFound: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			op, ver, found := extractVersionRequirement(tt.reqVers, tt.depName)
+
+			if found != tt.expectedFound {
+				t.Errorf("extractVersionRequirement() found = %v, want %v", found, tt.expectedFound)
+			}
+
+			if tt.expectedFound {
+				if op != tt.expectedOp {
+					t.Errorf("extractVersionRequirement() op = %q, want %q", op, tt.expectedOp)
+				}
+				if ver != tt.expectedVer {
+					t.Errorf("extractVersionRequirement() ver = %q, want %q", ver, tt.expectedVer)
+				}
+			}
+		})
+	}
+}
+
+// TestFindAllCandidatesEdgeCases tests edge cases in candidate finding
+func TestFindAllCandidatesEdgeCases(t *testing.T) {
+	parent := ospackage.PackageInfo{
+		Name:        "parent-package",
+		Type:        "rpm",
+		Version:     "1.0-1.azl3",
+		Arch:        "x86_64",
+		URL:         "https://example.com/repo/Packages/parent-package-1.0-1.azl3.x86_64.rpm",
+		Requires:    []string{"glibc", "systemd"},
+		RequiresVer: []string{"glibc (>= 2.17)", "systemd (= 1:255-29.emt3)"},
+	}
+
+	tests := []struct {
+		name          string
+		depName       string
+		allPackages   []ospackage.PackageInfo
+		expectedCount int
+		expectedNames []string
+		expectError   bool
+	}{
+		{
+			name:          "Empty package list",
+			depName:       "nonexistent",
+			allPackages:   []ospackage.PackageInfo{},
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name:    "Package with provides field only",
+			depName: "virtual-capability",
+			allPackages: []ospackage.PackageInfo{
+				{
+					Name:     "provider1",
+					Type:     "rpm",
+					Version:  "1.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/provider1-1.0-1.azl3.x86_64.rpm",
+					Provides: []string{"virtual-capability", "other-capability"},
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "provider2",
+					Type:     "rpm",
+					Version:  "2.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/provider2-2.0-1.azl3.x86_64.rpm",
+					Provides: []string{"virtual-capability"},
+					Requires: []string{"glibc"},
+				},
+			},
+			expectedCount: 2,
+			expectedNames: []string{"provider2", "provider1"}, // Sorted by version (highest first)
+			expectError:   false,
+		},
+		{
+			name:    "Package providing file",
+			depName: "/usr/bin/special-tool",
+			allPackages: []ospackage.PackageInfo{
+				{
+					Name:     "tool-package",
+					Type:     "rpm",
+					Version:  "1.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/tool-package-1.0-1.azl3.x86_64.rpm",
+					Files:    []string{"/usr/bin/special-tool", "/usr/share/tool/config"},
+					Requires: []string{"glibc"},
+				},
+			},
+			expectedCount: 1,
+			expectedNames: []string{"tool-package"},
+			expectError:   false,
+		},
+		{
+			name:    "Multiple matches with different types",
+			depName: "common-name",
+			allPackages: []ospackage.PackageInfo{
+				{
+					Name:     "common-name",
+					Type:     "rpm",
+					Version:  "1.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/common-name-1.0-1.azl3.x86_64.rpm",
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "different-package",
+					Type:     "rpm",
+					Version:  "2.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/different-package-2.0-1.azl3.x86_64.rpm",
+					Provides: []string{"common-name"},
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "another-package",
+					Type:     "rpm",
+					Version:  "1.5-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/another-package-1.5-1.azl3.x86_64.rpm",
+					Files:    []string{"/usr/bin/common-name"},
+					Requires: []string{"glibc"},
+				},
+			},
+			expectedCount: 1,                       // Only the exact name match
+			expectedNames: []string{"common-name"}, // Only exact match is returned
+			expectError:   false,
+		},
+		{
+			name:    "Provides matching when no exact name match",
+			depName: "virtual-service",
+			allPackages: []ospackage.PackageInfo{
+				{
+					Name:     "service-impl-a",
+					Type:     "rpm",
+					Version:  "1.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/service-impl-a-1.0-1.azl3.x86_64.rpm",
+					Provides: []string{"virtual-service", "other-capability"},
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "service-impl-b",
+					Type:     "rpm",
+					Version:  "2.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/service-impl-b-2.0-1.azl3.x86_64.rpm",
+					Provides: []string{"virtual-service"},
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "file-provider",
+					Type:     "rpm",
+					Version:  "1.5-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/file-provider-1.5-1.azl3.x86_64.rpm",
+					Files:    []string{"/usr/bin/virtual-service"},
+					Requires: []string{"glibc"},
+				},
+			},
+			expectedCount: 2,                                            // Both packages that provide virtual-service
+			expectedNames: []string{"service-impl-b", "service-impl-a"}, // Sorted by version (highest first)
+			expectError:   false,
+		},
+		{
+			name:    "File matching when no exact name or provides match",
+			depName: "/usr/bin/unique-tool",
+			allPackages: []ospackage.PackageInfo{
+				{
+					Name:     "unrelated-package",
+					Type:     "rpm",
+					Version:  "1.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/unrelated-package-1.0-1.azl3.x86_64.rpm",
+					Provides: []string{"some-capability"},
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "tool-provider-a",
+					Type:     "rpm",
+					Version:  "1.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/tool-provider-a-1.0-1.azl3.x86_64.rpm",
+					Files:    []string{"/usr/bin/unique-tool", "/usr/share/tools/config"},
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "tool-provider-b",
+					Type:     "rpm",
+					Version:  "2.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/tool-provider-b-2.0-1.azl3.x86_64.rpm",
+					Files:    []string{"/usr/bin/unique-tool", "/usr/bin/other-tool"},
+					Requires: []string{"glibc"},
+				},
+			},
+			expectedCount: 2,                                              // Both packages that provide the file
+			expectedNames: []string{"tool-provider-b", "tool-provider-a"}, // Sorted by version (highest first)
+			expectError:   false,
+		},
+		{
+			name:    "Packages with complex dependency requirements",
+			depName: "complex-dep",
+			allPackages: []ospackage.PackageInfo{
+				{
+					Name:        "complex-dep-1.0-1.azl3.x86_64.rpm",
+					Type:        "rpm",
+					Version:     "1.0-1.azl3",
+					Arch:        "x86_64",
+					URL:         "https://example.com/repo/Packages/complex-dep-1.0-1.azl3.x86_64.rpm",
+					Requires:    []string{"glibc", "systemd", "openssl"},
+					RequiresVer: []string{"glibc (>= 2.17)", "systemd (= 1:255-29.emt3)", "openssl (>= 1.1.1)"},
+				},
+				{
+					Name:        "complex-dep-2.0-1.emt3.x86_64.rpm",
+					Type:        "rpm",
+					Version:     "2.0-1.emt3",
+					Arch:        "x86_64",
+					URL:         "https://example.com/other-repo/Packages/complex-dep-2.0-1.emt3.x86_64.rpm",
+					Requires:    []string{"glibc", "systemd"},
+					RequiresVer: []string{"glibc (>= 2.28)", "systemd (>= 1:250)"},
+				},
+			},
+			expectedCount: 2,
+			expectedNames: []string{"complex-dep-2.0-1.emt3.x86_64.rpm", "complex-dep-1.0-1.azl3.x86_64.rpm"}, // Sorted by version
+			expectError:   false,
+		},
+		{
+			name:    "Packages with epoch in version",
+			depName: "epoch-package",
+			allPackages: []ospackage.PackageInfo{
+				{
+					Name:     "epoch-package-1:1.0-1.azl3.x86_64.rpm",
+					Type:     "rpm",
+					Version:  "1:1.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/epoch-package-1:1.0-1.azl3.x86_64.rpm",
+					Requires: []string{"glibc"},
+				},
+				{
+					Name:     "epoch-package-2.0-1.azl3.x86_64.rpm",
+					Type:     "rpm",
+					Version:  "2.0-1.azl3",
+					Arch:     "x86_64",
+					URL:      "https://example.com/repo/Packages/epoch-package-2.0-1.azl3.x86_64.rpm",
+					Requires: []string{"glibc"},
+				},
+			},
+			expectedCount: 2,
+			expectedNames: []string{"epoch-package-1:1.0-1.azl3.x86_64.rpm", "epoch-package-2.0-1.azl3.x86_64.rpm"}, // Epoch version should be higher
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			candidates, err := findAllCandidates(parent, tt.depName, tt.allPackages)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("findAllCandidates() expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("findAllCandidates() unexpected error: %v", err)
+			}
+
+			if len(candidates) != tt.expectedCount {
+				t.Errorf("findAllCandidates() returned %d candidates, want %d", len(candidates), tt.expectedCount)
+			}
+
+			for i, expectedName := range tt.expectedNames {
+				if i < len(candidates) && candidates[i].Name != expectedName {
+					t.Errorf("findAllCandidates() candidate[%d].Name = %q, want %q", i, candidates[i].Name, expectedName)
+				}
+			}
+		})
+	}
+}
+
+// TestPackageNameExtractionEdgeCases tests edge cases in package name extraction
+func TestPackageNameExtractionEdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		fullName string
+		expected string
+	}{
+		{
+			name:     "Package with multiple version parts",
+			fullName: "kernel-modules-extra-5.15.0-25.44.azl3.x86_64.rpm",
+			expected: "kernel-modules-extra",
+		},
+		{
+			name:     "Package with plus in version",
+			fullName: "gcc-11.2.1+20220127-1.azl3.x86_64.rpm",
+			expected: "gcc",
+		},
+		{
+			name:     "Package with tilde in version",
+			fullName: "python3-3.9.16~1.azl3.x86_64.rpm",
+			expected: "python3",
+		},
+		{
+			name:     "Package with colon in version (epoch)",
+			fullName: "systemd-1:255-29.emt3.x86_64.rpm",
+			expected: "systemd",
+		},
+		{
+			name:     "Package name with underscores",
+			fullName: "lib_special_package-1.0-1.el8.noarch.rpm",
+			expected: "lib_special_package",
+		},
+		{
+			name:     "Very complex package name",
+			fullName: "perl-DBD-MySQL-4.050-5.module+el8.5.0+20651+a25e96c4.x86_64.rpm",
+			expected: "perl-DBD-MySQL",
+		},
+		{
+			name:     "Package without rpm extension",
+			fullName: "simple-package-1.0-1.noarch",
+			expected: "simple-package",
+		},
+		{
+			name:     "Empty string",
+			fullName: "",
+			expected: "",
+		},
+		{
+			name:     "Just extension",
+			fullName: ".rpm",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractBasePackageNameFromFile(tt.fullName)
+			if result != tt.expected {
+				t.Errorf("extractBasePackageNameFromFile(%q) = %q, want %q", tt.fullName, result, tt.expected)
+			}
+		})
+	}
+}
