@@ -420,6 +420,39 @@ func ResolveTopPackageConflicts(want, pkgType string, all []ospackage.PackageInf
 		return candidates[0], true
 	}
 
+	// If multiple candidates, apply further filtering based on Dist
+	if Dist != "" {
+		// Filter candidates by release if any candidate matches Dist
+		distRelease := ""
+		for _, pi := range candidates {
+			if idx := strings.LastIndex(pi.Version, "-"); idx != -1 {
+				verPart := pi.Version[idx+1:]
+				if dotIdx := strings.Index(verPart, "."); dotIdx != -1 {
+					release := verPart[dotIdx+1:]
+					if release == Dist {
+						distRelease = release
+						break
+					}
+				}
+			}
+		}
+		if distRelease != "" {
+			filtered := candidates[:0]
+			for _, pi := range candidates {
+				if idx := strings.LastIndex(pi.Version, "-"); idx != -1 {
+					verPart := pi.Version[idx+1:]
+					if dotIdx := strings.Index(verPart, "."); dotIdx != -1 {
+						release := verPart[dotIdx+1:]
+						if release == distRelease {
+							filtered = append(filtered, pi)
+						}
+					}
+				}
+			}
+			candidates = filtered
+		}
+	}
+
 	// Sort by version (highest version first)
 	sort.Slice(candidates, func(i, j int) bool {
 		return compareVersions(candidates[i].Version, candidates[j].Version) > 0

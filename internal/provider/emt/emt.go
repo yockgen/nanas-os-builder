@@ -228,6 +228,7 @@ func (p *Emt) downloadImagePkgs(template *config.ImageTemplate) error {
 	pkgCacheDir := filepath.Join(globalCache, "pkgCache", providerId)
 	rpmutils.RepoCfg = p.repoCfg
 	rpmutils.GzHref = p.zstHref
+	rpmutils.Dist = template.Target.Dist
 	rpmutils.UserRepo = template.GetPackageRepositories()
 	template.FullPkgList, err = rpmutils.DownloadPackages(pkgList, pkgCacheDir, "")
 	return err

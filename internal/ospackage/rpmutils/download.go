@@ -36,6 +36,7 @@ var (
 	RepoCfg  RepoConfig
 	GzHref   string
 	UserRepo []config.PackageRepository
+	Dist     string
 )
 
 func Packages() ([]ospackage.PackageInfo, error) {
