@@ -19,7 +19,7 @@ func TestRPMResolver(t *testing.T) {
 	resolvertest.RunResolverTestsFunc(
 		t,
 		"rpmutils",
-		ResolvePackageInfos, // directly passing your function
+		ResolveDependencies, // directly passing your function
 	)
 }
 
@@ -261,8 +261,8 @@ func TestParsePrimary(t *testing.T) {
 			}))
 			defer server.Close()
 
-			// Test ParsePrimary
-			packages, err := ParsePrimary(server.URL+"/", tt.filename)
+			// Test ParseRepositoryMetadata
+			packages, err := ParseRepositoryMetadata(server.URL+"/", tt.filename)
 
 			if tt.expectedError {
 				if err == nil {

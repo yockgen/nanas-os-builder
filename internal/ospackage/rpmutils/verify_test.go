@@ -126,7 +126,7 @@ func TestVerifyAll(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results := VerifyAll(tt.paths, tt.pubkeyPath, tt.workers)
+			results := VerifyAll(tt.paths, []string{tt.pubkeyPath}, tt.workers)
 
 			if len(results) != tt.wantLen {
 				t.Errorf("VerifyAll() returned %d results, want %d", len(results), tt.wantLen)
@@ -168,7 +168,7 @@ func TestVerifyAllWithNonExistentFiles(t *testing.T) {
 	}
 
 	nonExistentFile := filepath.Join(tmpDir, "nonexistent.rpm")
-	results := VerifyAll([]string{nonExistentFile}, invalidPubkeyFile, 1)
+	results := VerifyAll([]string{nonExistentFile}, []string{invalidPubkeyFile}, 1)
 
 	if len(results) != 1 {
 		t.Fatalf("Expected 1 result, got %d", len(results))
@@ -204,7 +204,7 @@ func TestVerifyAllWithInvalidPubkey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	results := VerifyAll([]string{rpmFile}, invalidPubkeyFile, 1)
+	results := VerifyAll([]string{rpmFile}, []string{invalidPubkeyFile}, 1)
 
 	if len(results) != 1 {
 		t.Fatalf("Expected 1 result, got %d", len(results))
@@ -337,7 +337,7 @@ func TestVerifyAllConcurrency(t *testing.T) {
 	for _, workers := range workerCounts {
 		t.Run(fmt.Sprintf("workers_%d", workers), func(t *testing.T) {
 			start := time.Now()
-			results := VerifyAll(paths, invalidPubkeyFile, workers)
+			results := VerifyAll(paths, []string{invalidPubkeyFile}, workers)
 			duration := time.Since(start)
 
 			if len(results) != numFiles {
@@ -394,7 +394,7 @@ func TestVerifyAllResultsOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	results := VerifyAll(paths, invalidPubkeyFile, 2)
+	results := VerifyAll(paths, []string{invalidPubkeyFile}, 2)
 
 	if len(results) != len(paths) {
 		t.Fatalf("Expected %d results, got %d", len(paths), len(results))
