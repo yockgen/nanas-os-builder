@@ -188,6 +188,12 @@ func (isoMaker *IsoMaker) createIso(template *config.ImageTemplate, initrdRootfs
 		return fmt.Errorf("failed to create GRUB configuration: %w", err)
 	}
 
+	// Copy GRUB files to ISO boot path
+	log.Infof("Copying GRUB files to ISO boot path...")
+	if err := copyGrubFilesToGrubPath(initrdRootfsPath, installRoot); err != nil {
+		return fmt.Errorf("failed to copy GRUB files to ISO boot path: %w", err)
+	}
+
 	log.Infof("Creating EFI FAT image...")
 	efiFatImgPath, err := createEfiFatImage(template, initrdRootfsPath, installRoot)
 	if err != nil {
@@ -345,6 +351,53 @@ func createGrubCfg(installRoot, imageName string) error {
 	if err := file.CopyFile(grubCfgSrc, grubCfgDest, "--preserve=mode", true); err != nil {
 		log.Errorf("Failed to copy grub.cfg to install root: %v", err)
 		return fmt.Errorf("failed to copy grub.cfg to install root: %w", err)
+	}
+
+	return nil
+}
+
+func copyGrubFilesToGrubPath(initrdRootfsPath, installRoot string) error {
+
+	// Copy GRUB locale files if exists
+	localSrcDir := filepath.Join(initrdRootfsPath, "usr", "share", "locale")
+	localLangpackDir := filepath.Join(initrdRootfsPath, "usr", "share", "locale-langpack")
+	for _, dir := range []string{localSrcDir, localLangpackDir} {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			log.Warnf("GRUB locale directory does not exist: %s", dir)
+		} else {
+			// traverse locale directory and copy only language directories
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				log.Errorf("Failed to read GRUB locale directory: %v", err)
+				return fmt.Errorf("failed to read GRUB locale directory: %w", err)
+			}
+			for _, entry := range entries {
+				if entry.IsDir() {
+					langDir := entry.Name()
+					langSrc := filepath.Join(dir, langDir, "LC_MESSAGES", "grub.mo")
+					if _, err := os.Stat(langSrc); os.IsNotExist(err) {
+						continue
+					}
+					langDest := filepath.Join(installRoot, "boot", "grub", "locale", fmt.Sprintf("%s.mo", langDir))
+					if err := file.CopyFile(langSrc, langDest, "--preserve=mode", true); err != nil {
+						log.Errorf("Failed to copy GRUB locale file to iso boot dir: %v", err)
+						return fmt.Errorf("failed to copy GRUB locale file to iso boot dir: %w", err)
+					}
+				}
+			}
+		}
+	}
+
+	// Copy GRUB font file if exists
+	fontsSrc := filepath.Join(initrdRootfsPath, "usr", "share", "grub", "unicode.pf2")
+	if _, err := os.Stat(fontsSrc); os.IsNotExist(err) {
+		log.Warnf("GRUB font file does not exist: %s", fontsSrc)
+	} else {
+		fontsDest := filepath.Join(installRoot, "boot", "grub", "fonts", "unicode.pf2")
+		if err := file.CopyFile(fontsSrc, fontsDest, "--preserve=mode", true); err != nil {
+			log.Errorf("Failed to copy GRUB font file to iso boot dir: %v", err)
+			return fmt.Errorf("failed to copy GRUB font file to iso boot dir: %w", err)
+		}
 	}
 
 	return nil
