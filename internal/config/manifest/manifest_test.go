@@ -369,8 +369,27 @@ func TestCopySBOMToChroot_MissingSourceSBOM(t *testing.T) {
 }
 
 func TestCopySBOMToChroot_InvalidChrootPath(t *testing.T) {
-	// Try to copy to a path that can't be created (requires root permissions)
-	invalidPath := "/root/should_not_exist/chroot"
+	// Skip this test if running as root (e.g., in Docker/Earthly containers)
+	// because root can write to read-only directories
+	if os.Geteuid() == 0 {
+		t.Skip("Skipping test when running as root (permission checks don't apply)")
+	}
+
+	// Create a directory and make it read-only to simulate permission issues
+	tmpDir := t.TempDir()
+	invalidPath := filepath.Join(tmpDir, "readonly")
+
+	// Create the directory
+	if err := os.MkdirAll(invalidPath, 0755); err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Make it read-only (no write permissions)
+	if err := os.Chmod(invalidPath, 0555); err != nil {
+		t.Fatalf("Failed to change directory permissions: %v", err)
+	}
+	// Restore permissions after test for cleanup
+	defer os.Chmod(invalidPath, 0755)
 
 	// Create source SBOM file
 	tempDir := config.TempDir()
@@ -386,10 +405,10 @@ func TestCopySBOMToChroot_InvalidChrootPath(t *testing.T) {
 	}
 	defer os.Remove(srcSBOM)
 
-	// Should return an error
+	// Should return an error when trying to create subdirectory in read-only dir
 	err := CopySBOMToChroot(invalidPath)
 	if err == nil {
-		t.Errorf("Expected error when copying to invalid chroot path, got nil")
+		t.Errorf("Expected error when copying to read-only chroot path, got nil")
 	}
 }
 
