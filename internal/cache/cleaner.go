@@ -139,13 +139,22 @@ func packageTargets(providerID string) ([]string, []string, error) {
 		if err := ensureSubPath(pkgRoot, target); err != nil {
 			return nil, nil, err
 		}
-		return []string{target}, nil, nil
+
+		exists, err := pathExists(target)
+		if err != nil {
+			return nil, nil, fmt.Errorf("checking %s: %w", target, err)
+		}
+
+		if exists {
+			return []string{target}, nil, nil
+		}
+		return nil, nil, nil // Provider-specific target doesn't exist
 	}
 
 	entries, err := os.ReadDir(pkgRoot)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, []string{pkgRoot}, nil
+			return nil, nil, nil // No package cache directory = no targets, no missing
 		}
 		return nil, nil, fmt.Errorf("listing package cache directory: %w", err)
 	}
@@ -167,40 +176,54 @@ func workspaceTargets(providerID string) ([]string, []string, error) {
 		return nil, nil, fmt.Errorf("resolving work directory: %w", err)
 	}
 
-	// Collect providers to clean.
-	var providers []string
 	if providerID != "" {
-		providers = append(providers, providerID)
-	} else {
-		entries, err := os.ReadDir(workDir)
+		// Handle specific provider request
+		return workspaceTargetsForProvider(workDir, providerID)
+	}
+
+	// Handle all providers - only target directories that actually exist
+	entries, err := os.ReadDir(workDir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil, nil // No workspace directory = no targets, no missing
+		}
+		return nil, nil, fmt.Errorf("listing workspace directory: %w", err)
+	}
+
+	targets := []string{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		providerTargets, _, err := workspaceTargetsForProvider(workDir, entry.Name())
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, []string{workDir}, nil
-			}
-			return nil, nil, fmt.Errorf("listing workspace directory: %w", err)
+			return nil, nil, err
 		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				providers = append(providers, entry.Name())
-			}
-		}
+		targets = append(targets, providerTargets...)
 	}
 
-	// If a provider was specified but its directory is missing, we still
-	// include the expected targets so the caller can surface them as skipped.
-	if providerID != "" && len(providers) == 0 {
-		providers = append(providers, providerID)
-	}
+	return targets, nil, nil
+}
 
-	var targets []string
-	for _, provider := range providers {
-		for _, sub := range []string{"chrootenv", "chrootbuild"} {
-			target := filepath.Join(workDir, provider, sub)
-			if err := ensureSubPath(workDir, target); err != nil {
-				return nil, nil, err
-			}
+func workspaceTargetsForProvider(workDir, providerID string) ([]string, []string, error) {
+	targets := []string{}
+
+	for _, sub := range []string{"chrootenv", "chrootbuild"} {
+		target := filepath.Join(workDir, providerID, sub)
+		if err := ensureSubPath(workDir, target); err != nil {
+			return nil, nil, err
+		}
+
+		exists, err := pathExists(target)
+		if err != nil {
+			return nil, nil, fmt.Errorf("checking %s: %w", target, err)
+		}
+
+		if exists {
 			targets = append(targets, target)
 		}
+		// Don't report missing subdirectories - only clean what actually exists
 	}
 
 	return targets, nil, nil

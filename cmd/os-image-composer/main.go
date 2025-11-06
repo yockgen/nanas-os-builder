@@ -49,13 +49,6 @@ func initConfig() {
 	cleanup := logger.InitWithLevel(globalConfig.Logging.Level)
 	defer cleanup()
 
-	// Handle log level override
-	if logLevel != "" {
-		globalConfig.Logging.Level = logLevel
-		config.SetGlobal(globalConfig)
-		logger.SetLogLevel(logLevel)
-	}
-
 	// Log configuration info
 	log := logger.Logger()
 	if configFilePath != "" {
@@ -83,6 +76,15 @@ The tool supports building custom images for:
 
 Use 'os-image-composer --help' to see available commands.
 Use 'os-image-composer <command> --help' for more information about a command.`,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Handle log level override after flag parsing
+			if logLevel != "" {
+				globalConfig := config.Global()
+				globalConfig.Logging.Level = logLevel
+				config.SetGlobal(globalConfig)
+				logger.SetLogLevel(logLevel)
+			}
+		},
 	}
 
 	// Add global flags

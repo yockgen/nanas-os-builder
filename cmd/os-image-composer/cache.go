@@ -70,11 +70,20 @@ caches or to restrict cleanup to a specific provider.`,
 			}
 
 			if len(result.RemovedPaths) == 0 && len(result.SkippedPaths) == 0 {
-				if opts.DryRun {
-					output = append(output, "No matching cache entries found.")
-				} else {
-					output = append(output, "No cache entries matched the requested scope.")
+				scopeDesc := ""
+				if opts.CleanPackages && opts.CleanWorkspace {
+					scopeDesc = "package or workspace cache"
+				} else if opts.CleanPackages {
+					scopeDesc = "package cache"
+				} else if opts.CleanWorkspace {
+					scopeDesc = "workspace cache"
 				}
+
+				if opts.ProviderID != "" {
+					scopeDesc += fmt.Sprintf(" for provider '%s'", opts.ProviderID)
+				}
+
+				output = append(output, fmt.Sprintf("No %s entries found.", scopeDesc))
 			}
 
 			if len(result.SkippedPaths) > 0 {
