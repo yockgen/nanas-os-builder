@@ -126,8 +126,7 @@ func (debInstaller *DebInstaller) InstallDebPkg(targetOsConfigDir, chrootEnvPath
 		"--hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount "+
 		"--include=%s "+
 		"--verbose --debug "+
-		"-- noble %s %s",
-		//"-- bookworm %s %s",
+		"-- bookworm %s %s",
 		pkgListStr, chrootEnvPath, localRepoConfigPath)
 
 	// Set environment variables to ensure non-interactive installation

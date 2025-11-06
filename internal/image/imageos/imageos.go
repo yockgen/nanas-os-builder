@@ -238,8 +238,7 @@ func (imageOs *ImageOs) initRootfsForDeb(installRoot string) error {
 		"--hook-dir=/usr/share/mmdebstrap/hooks/file-mirror-automount "+
 		"--include=%s "+
 		"--verbose --debug "+
-		"-- noble %s %s",
-		//"-- bookworm %s %s",
+		"-- bookworm %s %s",
 		pkgListStr, chrootInstallRoot, localRepoConfigChrootPath)
 
 	chrootEnvRoot := imageOs.chrootEnv.GetChrootEnvRoot()
@@ -887,7 +886,17 @@ func updateInitramfs(installRoot, kernelVersion string, template *config.ImageTe
 
 	// For immutable systems, use standard dracut - dm-verity will be handled by main systemd
 	if template.IsImmutabilityEnabled() {
-		log.Infof("Creating standard initramfs for immutable system - dm-verity will be handled by main systemd")
+		cmd := fmt.Sprintf(
+			"dracut --force --add systemd-veritysetup --no-hostonly --verbose --kver %s %s",
+			kernelVersion,
+			initrdPath,
+		)
+		_, err := shell.ExecCmd(cmd, true, installRoot, nil)
+		if err != nil {
+			log.Errorf("Failed to update initramfs with veritysetup: %v", err)
+			err = fmt.Errorf("failed to update initramfs with veritysetup: %w", err)
+		}
+		return err
 	}
 	// Check if the initrdPath file exists; if not, create it
 	fullInitrdPath := filepath.Join(installRoot, initrdPath)

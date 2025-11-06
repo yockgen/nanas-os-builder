@@ -3,8 +3,6 @@ image:
   version: "24.04"
 
 target:
-  # os: wind-river-elxr # Target OS name
-  # dist: elxr12 # Target OS distribution
   os: ubuntu # Target OS name
   dist: ubuntu24 # Target OS distribution
   arch: x86_64 # Target OS architecture
