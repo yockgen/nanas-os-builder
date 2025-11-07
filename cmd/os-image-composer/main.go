@@ -15,10 +15,17 @@ var (
 	configFile       string = "" // Path to config file
 	logLevel         string = "" // Empty means use config file value
 	actualConfigFile string = "" // Actual config file path found during init
+	loggerCleanup    func()
 )
 
 func main() {
 	cobra.OnInitialize(initConfig)
+
+	defer func() {
+		if loggerCleanup != nil {
+			loggerCleanup()
+		}
+	}()
 
 	// Create and execute root command
 	rootCmd := createRootCommand()
@@ -47,9 +54,16 @@ func initConfig() {
 	// Set global config singleton
 	config.SetGlobal(globalConfig)
 
-	// Setup logger with configured level (will be overridden in PersistentPreRun if needed)
-	_, cleanup := logger.InitWithLevel(globalConfig.Logging.Level)
-	defer cleanup()
+	// Setup logger with configured level and optional file output (overridden later if needed)
+	_, cleanup, logErr := logger.InitWithConfig(logger.Config{
+		Level:    globalConfig.Logging.Level,
+		FilePath: globalConfig.Logging.File,
+	})
+	if logErr != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing logger: %v\n", logErr)
+		os.Exit(1)
+	}
+	loggerCleanup = cleanup
 }
 
 // createRootCommand creates and configures the root cobra command with all subcommands

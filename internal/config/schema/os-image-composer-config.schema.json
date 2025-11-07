@@ -58,6 +58,12 @@
 						"error"
 					],
 					"default": "info"
+				},
+				"file": {
+					"type": "string",
+					"description": "Optional log file path for teeing output",
+					"minLength": 1,
+					"maxLength": 4096
 				}
 			},
 			"required": [

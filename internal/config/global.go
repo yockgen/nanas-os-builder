@@ -3,6 +3,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +31,8 @@ type GlobalConfig struct {
 
 // LoggingConfig controls basic logging behavior
 type LoggingConfig struct {
-	Level string `yaml:"level" json:"level"` // Log verbosity level: debug (most verbose), info (default), warn (warnings only), error (errors only)
+	Level string `yaml:"level" json:"level"`                   // Log verbosity level: debug (most verbose), info (default), warn (warnings only), error (errors only)
+	File  string `yaml:"file,omitempty" json:"file,omitempty"` // Optional log file path for teeing output to disk
 }
 
 // Global singleton variables
@@ -87,8 +89,16 @@ func LoadGlobalConfig(configPath string) (*GlobalConfig, error) {
 		return config, nil
 	}
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return config, nil // Return defaults if file doesn't exist
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			return config, nil // Return defaults if file doesn't exist
+		}
+		if errors.Is(err, os.ErrPermission) {
+			log.Warnf("Config file %s is not accessible (%v); using defaults", configPath, err)
+			return config, nil
+		}
+		log.Errorf("Error accessing config file %s: %v", configPath, err)
+		return nil, fmt.Errorf("accessing config file %s: %w", configPath, err)
 	}
 
 	// Load and merge config file values with symlink protection
@@ -202,6 +212,8 @@ func (gc *GlobalConfig) Validate() error {
 		return fmt.Errorf("invalid log level %q, must be one of: %s",
 			gc.Logging.Level, strings.Join(validLevels, ", "))
 	}
+
+	gc.Logging.File = strings.TrimSpace(gc.Logging.File)
 
 	// Ensure temp directory is set (can be empty to use system default)
 	if gc.TempDir == "" {

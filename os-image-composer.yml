@@ -31,9 +31,10 @@ temp_dir: "./tmp"
 
 # Logging configuration
 logging:
-  level: "debug"
+  level: "info"
   # Log verbosity level (default: info)
   # - debug: Most verbose, shows all operations and data structures
   # - info:  Normal output, shows progress and important events
   # - warn:  Only warnings and errors, minimal output
   # - error: Only errors, very quiet operation
+  file: "os-image-composer.log"  # When set, file is overwritten on each run

@@ -2201,13 +2201,14 @@ func TestGlobalConfigValidate(t *testing.T) {
 
 func TestLoadGlobalConfigFromFile(t *testing.T) {
 	// Create test config file
-	configContent := `workers: 6
-config_dir: /custom/config
-cache_dir: /custom/cache
-work_dir: /custom/work
-temp_dir: /custom/temp
-logging:
-  level: debug`
+	configContent := "workers: 6\n" +
+		"config_dir: /custom/config\n" +
+		"cache_dir: /custom/cache\n" +
+		"work_dir: /custom/work\n" +
+		"temp_dir: /custom/temp\n" +
+		"logging:\n" +
+		"  level: debug\n" +
+		"  file: /var/log/test.log\n"
 
 	tmpFile, err := os.CreateTemp("", "test-config-*.yml")
 	if err != nil {
@@ -2240,6 +2241,10 @@ logging:
 
 	if config.Logging.Level != "debug" {
 		t.Errorf("expected log level = 'debug', got '%s'", config.Logging.Level)
+	}
+
+	if config.Logging.File != "/var/log/test.log" {
+		t.Errorf("expected log file = '/var/log/test.log', got '%s'", config.Logging.File)
 	}
 }
 

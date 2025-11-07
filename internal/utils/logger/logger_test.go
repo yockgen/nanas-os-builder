@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -13,9 +14,15 @@ import (
 
 // resetLogger resets the global logger state for testing
 func resetLogger() {
+	mu.Lock()
+	if logFile != nil {
+		_ = logFile.Close()
+		logFile = nil
+	}
 	sugarLogger = nil
 	baseLogger = nil
 	atomicLevel = zap.AtomicLevel{}
+	mu.Unlock()
 	once = sync.Once{}
 }
 
@@ -154,8 +161,44 @@ func TestInitWithLevelMultipleCalls(t *testing.T) {
 	sugar2, cleanup2 := InitWithLevel("error")
 	defer cleanup2()
 
-	if sugar1 != sugar2 {
-		t.Error("Multiple calls to InitWithLevel should return the same logger instance")
+	if sugar1 == nil {
+		t.Fatal("First InitWithLevel call returned nil logger")
+	}
+
+	if sugar2 == nil {
+		t.Fatal("Second InitWithLevel call returned nil logger")
+	}
+
+	if sugar2 != Logger() {
+		t.Error("Latest InitWithLevel call did not update the global logger instance")
+	}
+
+	if atomicLevel.Level() != zapcore.ErrorLevel {
+		t.Errorf("Expected log level to be error, got %v", atomicLevel.Level())
+	}
+}
+
+func TestInitWithConfigFile(t *testing.T) {
+	resetLogger()
+
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	sugar, cleanup, err := InitWithConfig(Config{Level: "info", FilePath: logPath})
+	if err != nil {
+		t.Fatalf("InitWithConfig returned error: %v", err)
+	}
+
+	sugar.Info("file logging test")
+	cleanup()
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("failed to read log file: %v", err)
+	}
+
+	if !strings.Contains(string(data), "file logging test") {
+		t.Errorf("log file does not contain expected message: %s", data)
 	}
 }
 
@@ -235,39 +278,20 @@ func TestSetLogLevelBeforeInit(t *testing.T) {
 	}
 }
 
-func TestLoggerPanicOnFailedInit(t *testing.T) {
+func TestInitWithConfigReturnsError(t *testing.T) {
 	resetLogger()
 
-	// Simulate a failed initialization by setting baseLogger to nil after once.Do
-	once.Do(func() {
-		baseLogger = nil // Force a nil baseLogger
-	})
+	tmpDir := t.TempDir()
+	blockingFile := filepath.Join(tmpDir, "blocker")
+	if err := os.WriteFile(blockingFile, []byte("x"), 0o600); err != nil {
+		t.Fatalf("failed to create blocking file: %v", err)
+	}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("Init should panic when baseLogger is nil")
-		}
-	}()
-
-	Init()
-}
-
-func TestInitWithLevelPanicOnFailedInit(t *testing.T) {
-	resetLogger()
-
-	// This is trickier to test since initLoggerWithLevel should always succeed
-	// But we can test the panic condition in InitWithLevel
-	once.Do(func() {
-		baseLogger = nil // Force a nil baseLogger
-	})
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("InitWithLevel should panic when baseLogger is nil")
-		}
-	}()
-
-	InitWithLevel("info")
+	// Using a file path nested under an existing file should cause directory creation to fail
+	_, _, err := InitWithConfig(Config{Level: "info", FilePath: filepath.Join(blockingFile, "app.log")})
+	if err == nil {
+		t.Fatal("InitWithConfig should return an error when log file cannot be created")
+	}
 }
 
 func TestLogLevelParsing(t *testing.T) {
