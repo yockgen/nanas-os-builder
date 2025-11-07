@@ -1233,6 +1233,10 @@ func createUser(installRoot string, template *config.ImageTemplate) error {
 					continue
 				}
 
+				if err := ensureGroupExists(installRoot, group); err != nil {
+					return fmt.Errorf("failed to ensure group %s exists: %w", group, err)
+				}
+
 				groupCmd := fmt.Sprintf("usermod -aG %s %s", group, user.Name)
 				if _, err := shell.ExecCmd(groupCmd, true, installRoot, nil); err != nil {
 					log.Errorf("Failed to add user %s to group %s: %v", user.Name, group, err)
@@ -1250,6 +1254,22 @@ func createUser(installRoot string, template *config.ImageTemplate) error {
 		log.Infof("User %s created successfully", user.Name)
 	}
 
+	return nil
+}
+
+func ensureGroupExists(installRoot, group string) error {
+	cmd := fmt.Sprintf("getent group %s", group)
+	if _, err := shell.ExecCmdSilent(cmd, true, installRoot, nil); err == nil {
+		return nil
+	}
+
+	createCmd := fmt.Sprintf("groupadd %s", group)
+	if output, err := shell.ExecCmd(createCmd, true, installRoot, nil); err != nil {
+		if strings.Contains(output, "already exists") {
+			return nil
+		}
+		return fmt.Errorf("groupadd failed: %w", err)
+	}
 	return nil
 }
 
