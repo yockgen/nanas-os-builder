@@ -70,6 +70,11 @@ version-info:
 all:
     BUILD +build
 
+clean-dist:
+    LOCALLY
+        RUN rm -rf dist
+        RUN mkdir -p dist
+
 build:
     FROM +golang-base
     ARG VERSION="__auto__"
@@ -159,7 +164,9 @@ deb:
     FROM debian:bookworm-slim
     ARG ARCH=amd64
     ARG VERSION="__auto__"
-    
+
+    BUILD +clean-dist
+
     WORKDIR /pkg
     COPY +version-info/version.txt /tmp/version.txt
     RUN cp /tmp/version.txt /tmp/pkg_version
@@ -238,6 +245,6 @@ deb:
         dpkg-deb --build . /tmp/dist/os-image-composer_${VERSION}_${ARCH}.deb
 
     # Save the debian package artifact and resolved version information to dist/
-    RUN cp /tmp/pkg_version /tmp/dist/os-image-composer.version
+    RUN VERSION=$(cat /tmp/pkg_version) && cp /tmp/pkg_version /tmp/dist/os-image-composer.version
     SAVE ARTIFACT /tmp/dist/os-image-composer_*_${ARCH}.deb AS LOCAL dist/
-    SAVE ARTIFACT /tmp/dist/os-image-composer.version AS LOCAL dist/
+    SAVE ARTIFACT /tmp/dist/os-image-composer.version AS LOCAL dist/os-image-composer.version
