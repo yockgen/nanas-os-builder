@@ -155,6 +155,7 @@ func TestInstallImageBoot_PartUUIDRetrievalFailure(t *testing.T) {
 	mockExpectedOutput := []shell.MockCommand{
 		{Pattern: "blkid.*PARTUUID", Output: "", Error: fmt.Errorf("partition UUID not found")},
 		{Pattern: "blkid.*UUID", Output: "UUID=test-uuid\n", Error: nil},
+		{Pattern: "command -v grub2-mkconfig", Output: "/usr/sbin/grub2-mkconfig", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
@@ -238,6 +239,7 @@ func TestInstallImageBoot_GrubLegacyMode(t *testing.T) {
 	mockExpectedOutput := []shell.MockCommand{
 		{Pattern: "blkid.*UUID", Output: "UUID=test-uuid\n", Error: nil},
 		{Pattern: "blkid.*PARTUUID", Output: "PARTUUID=test-partuuid\n", Error: nil},
+		{Pattern: "command -v grub2-mkconfig", Output: "/usr/sbin/grub2-mkconfig", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
