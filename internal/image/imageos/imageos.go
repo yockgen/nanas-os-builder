@@ -897,7 +897,6 @@ func updateInitramfs(installRoot, kernelVersion string, template *config.ImageTe
 	}
 
 	// Always add USB drivers
-	// extraModules := "usbcore usb-common"
 	extraModules := strings.TrimSpace(template.SystemConfig.Kernel.EnableExtraModules)
 	if extraModules != "" {
 		cmdParts = append(cmdParts, fmt.Sprintf("--add-drivers '%s'", extraModules))
