@@ -568,10 +568,10 @@ func TestList_InsertItem_FirstItem_CallsChanged(t *testing.T) {
 
 func TestList_FindItems_MainText(t *testing.T) {
 	list := NewList()
-	list.AddItem("Apple", "", 0, nil)      // matches "Ap"
-	list.AddItem("Banana", "", 0, nil)     // no match
-	list.AddItem("Carrot", "", 0, nil)     // no match
-	list.AddItem("Apricot", "", 0, nil)    // matches "Ap"
+	list.AddItem("Apple", "", 0, nil)   // matches "Ap"
+	list.AddItem("Banana", "", 0, nil)  // no match
+	list.AddItem("Carrot", "", 0, nil)  // no match
+	list.AddItem("Apricot", "", 0, nil) // matches "Ap"
 
 	// When searching for "Ap" in main text and empty secondary text
 	indices := list.FindItems("Ap", "", false, false)
