@@ -527,10 +527,11 @@ func (imageOs *ImageOs) installImagePkgs(installRoot string, template *config.Im
 		imagePkgNum := len(imagePkgOrderedList)
 		// Force to use the local cache repository
 		var repoSrcList []string = []string{"/etc/apt/sources.list.d/local.list"}
+		var efiVariableAccessPkg = []string{"systemd-boot", "dracut-core"}
 		for i, pkg := range imagePkgOrderedList {
 			log.Infof("Installing package %d/%d: %s", i+1, imagePkgNum, pkg)
-			if slice.Contains([]string{"systemd-boot", "dracut-core"}, pkg) {
-				// systemd-boot is a special case,
+			if slice.Contains(efiVariableAccessPkg, pkg) {
+				// systemd-boot and dracut-core are special cases,
 				// 'Failed to write 'LoaderSystemToken' EFI variable: No such file or directory' error is expected.
 				installCmd := fmt.Sprintf("apt-get install -y %s", pkg)
 
