@@ -20,6 +20,7 @@ import (
 	"github.com/open-edge-platform/os-image-composer/internal/utils/logger"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/mount"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/shell"
+	"github.com/open-edge-platform/os-image-composer/internal/utils/slice"
 )
 
 type ImageOsInterface interface {
@@ -528,7 +529,7 @@ func (imageOs *ImageOs) installImagePkgs(installRoot string, template *config.Im
 		var repoSrcList []string = []string{"/etc/apt/sources.list.d/local.list"}
 		for i, pkg := range imagePkgOrderedList {
 			log.Infof("Installing package %d/%d: %s", i+1, imagePkgNum, pkg)
-			if pkg == "systemd-boot" {
+			if slice.Contains([]string{"systemd-boot", "dracut-core"}, pkg) {
 				// systemd-boot is a special case,
 				// 'Failed to write 'LoaderSystemToken' EFI variable: No such file or directory' error is expected.
 				installCmd := fmt.Sprintf("apt-get install -y %s", pkg)
@@ -538,7 +539,15 @@ func (imageOs *ImageOs) installImagePkgs(installRoot string, template *config.Im
 						installCmd += fmt.Sprintf(" -o Dir::Etc::sourcelist=%s", repoSrc)
 					}
 				}
-				output, err := shell.ExecCmdWithStream(installCmd, true, installRoot, nil)
+
+				// Set environment variables to ensure non-interactive installation
+				envVars := []string{
+					"DEBIAN_FRONTEND=noninteractive",
+					"DEBCONF_NONINTERACTIVE_SEEN=true",
+					"DEBCONF_NOWARNINGS=yes",
+				}
+
+				output, err := shell.ExecCmdWithStream(installCmd, true, installRoot, envVars)
 				if err != nil {
 					if strings.Contains(output, "Failed to write 'LoaderSystemToken' EFI variable") {
 						log.Debugf("Expected error: The EFI variable shouldn't be accessed in chroot.")
@@ -588,14 +597,14 @@ func updateImageConfig(installRoot string, diskPathIdMap map[string]string, temp
 	if err := updateImageHostname(installRoot, template); err != nil {
 		return fmt.Errorf("failed to update image hostname: %w", err)
 	}
+	if err := addImageAdditionalFiles(installRoot, template); err != nil {
+		return fmt.Errorf("failed to add additional files to image: %w", err)
+	}
 	if err := updateImageUsrGroup(installRoot, template); err != nil {
 		return fmt.Errorf("failed to update image user/group: %w", err)
 	}
 	if err := updateImageNetwork(installRoot, template); err != nil {
 		return fmt.Errorf("failed to update image network: %w", err)
-	}
-	if err := addImageAdditionalFiles(installRoot, template); err != nil {
-		return fmt.Errorf("failed to add additional files to image: %w", err)
 	}
 	if err := addImageIDFile(installRoot, template); err != nil {
 		return fmt.Errorf("failed to add image ID file: %w", err)
