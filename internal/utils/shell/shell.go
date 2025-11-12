@@ -2,6 +2,7 @@ package shell
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -179,15 +180,21 @@ func IsCommandExist(cmd string, chrootPath string) (bool, error) {
 	} else {
 		cmdStr = "bash -c 'command -v " + cmd + "'"
 	}
-	output, err := ExecCmd(cmdStr, false, chrootPath, nil)
+
+	output, err := ExecCmdSilent(cmdStr, false, chrootPath, nil)
 	if err != nil {
-		output = strings.TrimSpace(output)
-		if len(output) == 0 {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			return false, nil
 		}
-		return false, fmt.Errorf("failed to execute command %s: output %s, err %w", cmdStr, output, err)
+		trimmed := strings.TrimSpace(output)
+		if len(trimmed) == 0 {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to execute command %s: output %s, err %w", cmdStr, trimmed, err)
 	}
-	return true, nil
+
+	return strings.TrimSpace(output) != "", nil
 }
 
 func extractSedPattern(command string) (string, error) {
