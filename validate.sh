@@ -566,7 +566,7 @@ build_ubuntu24_raw_image() {
     echo "Ubuntu 24 raw Image build passed."
     if [ "$RUN_QEMU_TESTS" = true ]; then
       echo "Running QEMU boot test for Ubuntu 24 raw image..."
-      if run_qemu_boot_test "ubuntu24-x86_64-minimal"; then
+      if run_qemu_boot_test "minimal-os-image-ubuntu-24.04"; then
         echo "QEMU boot test PASSED for Ubuntu 24 raw image"
       else
         echo "QEMU boot test FAILED for Ubuntu 24 raw image"
@@ -590,7 +590,7 @@ build_ubuntu24_iso_image() {
     echo "Ubuntu 24 iso Image build passed."
     if [ "$RUN_QEMU_TESTS" = true ]; then
       echo "Running QEMU boot test for Ubuntu 24 ISO image..."
-      if run_qemu_boot_test_iso "ubuntu24-x86_64-minimal"; then
+      if run_qemu_boot_test_iso "minimal-os-image-ubuntu-24.04"; then
         echo "QEMU boot test PASSED for Ubuntu 24 ISO image"
       else
         echo "QEMU boot test FAILED for Ubuntu 24 ISO image"
@@ -615,7 +615,7 @@ build_ubuntu24_immutable_raw_image() {
     echo "Ubuntu 24 immutable raw Image build passed."
     if [ "$RUN_QEMU_TESTS" = true ]; then
       echo "Running QEMU boot test for Ubuntu 24 immutable raw image..."
-      if run_qemu_boot_test "minimal-os-image-ubuntu24"; then
+      if run_qemu_boot_test "minimal-os-image-ubuntu-24.04"; then
         echo "QEMU boot test PASSED for Ubuntu 24 immutable raw image"
       else
         echo "QEMU boot test FAILED for Ubuntu 24 immutable raw image"
