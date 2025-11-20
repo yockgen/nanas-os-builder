@@ -382,7 +382,12 @@ func getRpmPkgInstallList(template *config.ImageTemplate) []string {
 
 func getDebPkgInstallList(template *config.ImageTemplate) []string {
 	var head, middle, tail []string
-	imagePkgList := append(template.GetKernelPackages(), template.GetPackages()...)
+	var imagePkgList []string
+	// Exclude the template.EssentialPkgList as it is already installed by mmdebstrap
+	imagePkgList = append(imagePkgList, template.KernelPkgList...)
+	imagePkgList = append(imagePkgList, template.SystemConfig.Packages...)
+	imagePkgList = append(imagePkgList, template.BootloaderPkgList...)
+
 	for _, pkg := range imagePkgList {
 		if strings.HasPrefix(pkg, "base-files") {
 			head = append(head, pkg)
