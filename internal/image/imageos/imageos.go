@@ -896,8 +896,13 @@ func updateInitramfs(installRoot, kernelVersion string, template *config.ImageTe
 		cmdParts = append(cmdParts, "--add", "systemd-veritysetup")
 	}
 
-	//cmdParts = append(cmdParts, "--add", "cut")
-	cmdParts = append(cmdParts, "--install", "/usr/bin/cut") //harcoded!! yockgen - need to fix
+	// Add cut utility for EMT images only
+	if template.Target.OS == "edge-microvisor-toolkit" {
+		log.Debugf("Adding /usr/bin/cut to initramfs for EMT image")
+		cmdParts = append(cmdParts, "--install", "/usr/bin/cut")
+	} else {
+		log.Debugf("Skipping /usr/bin/cut for non-EMT image (OS: %s)", template.Target.OS)
+	}
 
 	// Always add USB drivers
 	extraModules := strings.TrimSpace(template.SystemConfig.Kernel.EnableExtraModules)
