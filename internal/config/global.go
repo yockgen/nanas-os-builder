@@ -248,7 +248,6 @@ func (gc *GlobalConfig) renderCommentedYAML() string {
 	b.WriteString("# Working directory for build operations and image assembly (default: ./workspace)\n")
 	b.WriteString("# Contains temporary build artifacts, extracted packages, and final images\n")
 	b.WriteString("# Hosts the per-provider chrootenv/chrootbuild trees used for entering/exiting chroot\n")
-	b.WriteString("# Cleaned up after successful builds\n")
 	b.WriteString("# Requires substantial space during builds (2-10GB typical)\n\n")
 
 	fmt.Fprintf(&b, "temp_dir: %q\n", gc.TempDir)
