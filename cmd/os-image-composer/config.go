@@ -59,8 +59,8 @@ func executeConfigInit(cmd *cobra.Command, args []string) error {
 	// Create default config
 	defaultConfig := config.DefaultGlobalConfig()
 
-	// Save to file
-	if err := defaultConfig.SaveGlobalConfig(configPath); err != nil {
+	// Save to file with descriptive comments
+	if err := defaultConfig.SaveGlobalConfigWithComments(configPath); err != nil {
 		return fmt.Errorf("failed to save config file: %v", err)
 	}
 
@@ -71,6 +71,7 @@ func executeConfigInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Work Directory: %s\n", defaultConfig.WorkDir)
 	fmt.Printf("  Temp Directory: %s\n", defaultConfig.TempDir)
 	fmt.Printf("  Log Level: %s\n", defaultConfig.Logging.Level)
+	fmt.Printf("  Log File: %s\n", defaultConfig.Logging.File)
 	fmt.Printf("\nEdit the configuration file to customize these settings.\n")
 
 	return nil

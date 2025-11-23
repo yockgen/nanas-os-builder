@@ -75,6 +75,7 @@ func DefaultGlobalConfig() *GlobalConfig {
 
 		Logging: LoggingConfig{
 			Level: "info",
+			File:  "os-image-composer.log",
 		},
 	}
 }
@@ -181,6 +182,95 @@ func (gc *GlobalConfig) SaveGlobalConfig(configPath string) error {
 	}
 
 	return nil
+}
+
+// SaveGlobalConfigWithComments saves the configuration with descriptive comments
+// mirroring the sample configuration shipped with the project. Primarily used by
+// the CLI config init command to create a user-friendly starting file.
+func (gc *GlobalConfig) SaveGlobalConfigWithComments(configPath string) error {
+	if configPath == "" {
+		return fmt.Errorf("config path is empty")
+	}
+
+	dir := filepath.Dir(configPath)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			log.Errorf("Failed to create config directory: %v", err)
+			return fmt.Errorf("creating config directory: %w", err)
+		}
+	}
+
+	jsonData, err := json.Marshal(gc)
+	if err != nil {
+		log.Errorf("Error converting config to JSON for validation: %v", err)
+		return fmt.Errorf("converting config to JSON for validation: %w", err)
+	}
+
+	if err := validate.ValidateConfigJSON(jsonData); err != nil {
+		log.Errorf("Config validation failed before save: %v", err)
+		return fmt.Errorf("config validation failed before save: %w", err)
+	}
+
+	commented := gc.renderCommentedYAML()
+
+	if err := security.SafeWriteFile(configPath, []byte(commented), 0600, security.RejectSymlinks); err != nil {
+		log.Errorf("Error writing config file: %v", err)
+		return fmt.Errorf("writing config file: %w", err)
+	}
+
+	return nil
+}
+
+// renderCommentedYAML builds a YAML representation of the config with rich comments.
+func (gc *GlobalConfig) renderCommentedYAML() string {
+	var b strings.Builder
+
+	b.WriteString("# OS Image Composer - Global Configuration\n")
+	b.WriteString("# This file contains tool-level settings that apply across all image builds.\n")
+	b.WriteString("# Image-specific parameters should be defined in the image specification.\n\n")
+
+	b.WriteString("# Core tool settings\n")
+	fmt.Fprintf(&b, "workers: %d\n", gc.Workers)
+	b.WriteString("# Number of concurrent download workers (1-100, default: 8)\n")
+	b.WriteString("# Higher values speed up package downloads but consume more network/CPU resources\n")
+	b.WriteString("# Recommended: 8-16 for most systems, 20+ for high-bandwidth servers\n\n")
+
+	fmt.Fprintf(&b, "config_dir: %q\n", gc.ConfigDir)
+	b.WriteString("# Directory containing configuration files for different target OSs (default: ./config)\n")
+	b.WriteString("# Should contain subdirectories for general and each target OS config files.\n\n")
+
+	fmt.Fprintf(&b, "cache_dir: %q\n", gc.CacheDir)
+	b.WriteString("# Package cache directory where downloaded RPMs/DEBs are stored (default: ./cache)\n")
+	b.WriteString("# This directory persists between builds for package reuse\n")
+	b.WriteString("# Should have sufficient space (typically 1-5GB depending on image size)\n\n")
+
+	fmt.Fprintf(&b, "work_dir: %q\n", gc.WorkDir)
+	b.WriteString("# Working directory for build operations and image assembly (default: ./workspace)\n")
+	b.WriteString("# Contains temporary build artifacts, extracted packages, and final images\n")
+	b.WriteString("# Hosts the per-provider chrootenv/chrootbuild trees used for entering/exiting chroot\n")
+	b.WriteString("# Cleaned up after successful builds\n")
+	b.WriteString("# Requires substantial space during builds (2-10GB typical)\n\n")
+
+	fmt.Fprintf(&b, "temp_dir: %q\n", gc.TempDir)
+	b.WriteString("# Temporary directory for short-lived files like GPG keys and metadata parsing\n")
+	b.WriteString("# Empty value uses system default (/tmp on Linux, %TEMP% on Windows)\n")
+	b.WriteString("# Used for: GPG verification files, decompressed metadata, parsing operations\n")
+	b.WriteString("# Files here are deleted within seconds/minutes of creation\n\n")
+
+	b.WriteString("# Logging configuration\n")
+	b.WriteString("logging:\n")
+	fmt.Fprintf(&b, "  level: %q\n", gc.Logging.Level)
+	b.WriteString("  # Log verbosity level (default: info)\n")
+	b.WriteString("  # - debug: Most verbose, shows all operations and data structures\n")
+	b.WriteString("  # - info:  Normal output, shows progress and important events\n")
+	b.WriteString("  # - warn:  Only warnings and errors, minimal output\n")
+	b.WriteString("  # - error: Only errors, very quiet operation\n")
+	if gc.Logging.File != "" {
+		fmt.Fprintf(&b, "  file: %q\n", gc.Logging.File)
+		b.WriteString("  # Tee logs to this file in addition to stdout/stderr (overwritten on each run)\n")
+	}
+
+	return b.String()
 }
 
 // Validate checks the configuration for consistency and applies constraints

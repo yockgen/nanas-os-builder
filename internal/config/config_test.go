@@ -2036,6 +2036,10 @@ func TestDefaultGlobalConfig(t *testing.T) {
 	if config.Logging.Level != "info" {
 		t.Errorf("expected default log level 'info', got '%s'", config.Logging.Level)
 	}
+
+	if config.Logging.File != "os-image-composer.log" {
+		t.Errorf("expected default log file 'os-image-composer.log', got '%s'", config.Logging.File)
+	}
 }
 
 // Fix the global singleton test to handle the sync.Once behavior properly
@@ -2424,6 +2428,32 @@ func TestGlobalConfigSaveWithCreateDirectory(t *testing.T) {
 	// Verify file was created
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		t.Errorf("config file was not created")
+	}
+}
+
+func TestSaveGlobalConfigWithComments(t *testing.T) {
+	config := DefaultGlobalConfig()
+	config.Logging.File = "custom.log"
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "commented-config.yml")
+
+	if err := config.SaveGlobalConfigWithComments(configPath); err != nil {
+		t.Fatalf("SaveGlobalConfigWithComments failed: %v", err)
+	}
+
+	contents, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read commented config: %v", err)
+	}
+
+	text := string(contents)
+	if !strings.Contains(text, "# OS Image Composer - Global Configuration") {
+		t.Fatalf("expected commented config header, got: %s", text)
+	}
+
+	if !strings.Contains(text, "file: \"custom.log\"") {
+		t.Fatalf("expected logging file entry in commented config, got: %s", text)
 	}
 }
 
