@@ -12,15 +12,15 @@ config_dir: "./config"
 # Directory containing configuration files for different target OSs (default: ./config)
 # Should contain subdirectories for general and each target OS config files.
 
-cache_dir: "./cache/os-image-composer"
+cache_dir: "./cache"
 # Package cache directory where downloaded RPMs/DEBs are stored (default: ./cache)
 # This directory persists between builds for package reuse
 # Should have sufficient space (typically 1-5GB depending on image size)
 
-work_dir: "./tmp/os-image-composer"
+work_dir: "./workspace"
 # Working directory for build operations and image assembly (default: ./workspace)
 # Contains temporary build artifacts, extracted packages, and final images
-# Cleaned up after successful builds
+# Hosts the per-provider chrootenv/chrootbuild trees used for entering/exiting chroot
 # Requires substantial space during builds (2-10GB typical)
 
 temp_dir: "./tmp"
@@ -37,4 +37,5 @@ logging:
   # - info:  Normal output, shows progress and important events
   # - warn:  Only warnings and errors, minimal output
   # - error: Only errors, very quiet operation
-  file: "os-image-composer.log"  # When set, file is overwritten on each run
+  file: "os-image-composer.log"
+  # Tee logs to this file in addition to stdout/stderr (overwritten on each run)

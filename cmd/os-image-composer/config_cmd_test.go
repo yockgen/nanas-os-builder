@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -19,5 +20,19 @@ func TestExecuteConfigInit_CreatesFile(t *testing.T) {
 
 	if _, err := os.Stat(target); err != nil {
 		t.Fatalf("expected config file to be created at %s, got error: %v", target, err)
+	}
+
+	contents, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("failed to read generated config: %v", err)
+	}
+
+	text := string(contents)
+	if !strings.Contains(text, "# OS Image Composer - Global Configuration") {
+		t.Fatalf("generated config missing header comments: %s", text)
+	}
+
+	if !strings.Contains(text, "file: \"os-image-composer.log\"") {
+		t.Fatalf("generated config missing logging.file entry: %s", text)
 	}
 }

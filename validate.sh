@@ -663,8 +663,8 @@ build_ubuntu24_immutable_raw_image() {
 }
 
 clean_build_dirs() {
-  echo "Cleaning build directories: cache/ and tmp/"
-  sudo rm -rf cache/ tmp/
+  echo "Cleaning build directories: cache/, tmp/ and workspace/"
+  sudo rm -rf cache/ tmp/ workspace/
   # Also clean up any extracted raw files in current directory
   cleanup_image_files extracted
   # Clean up any temporary files in /tmp
