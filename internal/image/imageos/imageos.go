@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/open-edge-platform/os-image-composer/internal/chroot"
 	"github.com/open-edge-platform/os-image-composer/internal/config"
+	"github.com/open-edge-platform/os-image-composer/internal/config/manifest"
 	"github.com/open-edge-platform/os-image-composer/internal/image/imageboot"
 	"github.com/open-edge-platform/os-image-composer/internal/image/imagedisc"
 	"github.com/open-edge-platform/os-image-composer/internal/image/imagesecure"
@@ -741,6 +742,32 @@ func addImageAdditionalFiles(installRoot string, template *config.ImageTemplate)
 		}
 		log.Debugf("Successfully added additional file: %s", dstFile)
 	}
+
+	// ADD SBOM FILE AUTOMATICALLY
+	log.Infof("Adding SBOM file to image filesystem")
+	spdxNm := manifest.DefaultSPDXFile
+	srcSBOM := filepath.Join(config.TempDir(), spdxNm)
+	dstSBOM := filepath.Join(installRoot, manifest.ImageSBOMPath, spdxNm)
+
+	// Check if source SBOM exists
+	if _, err := os.Stat(srcSBOM); os.IsNotExist(err) {
+		log.Warnf("SBOM file not found at %s, skipping copy to image", srcSBOM)
+	} else {
+		// Create destination directory
+		dstDir := filepath.Dir(dstSBOM)
+		if _, err := shell.ExecCmd("mkdir -p "+dstDir, true, shell.HostPath, nil); err != nil {
+			log.Errorf("Failed to create SBOM directory: %v", err)
+			return fmt.Errorf("failed to create SBOM directory: %w", err)
+		}
+
+		// Copy SBOM file
+		if err := file.CopyFile(srcSBOM, dstSBOM, "-p", true); err != nil {
+			log.Errorf("Failed to copy SBOM file to image: %v", err)
+			return fmt.Errorf("failed to copy SBOM file to image: %w", err)
+		}
+		log.Infof("Successfully added SBOM file to image: %s", dstSBOM)
+	}
+
 	return nil
 }
 

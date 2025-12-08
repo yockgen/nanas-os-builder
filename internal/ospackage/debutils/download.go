@@ -461,9 +461,15 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	log.Infof("resolved %d packages", len(needed))
 
 	// Generate SPDX manifest, generated in temp directory
+	manifest.DefaultSPDXFile = filepath.Join("spdx_manifest_deb_" + strings.ReplaceAll(RepoCfg.Name, " ", "_") + ".json")
 	spdxFile := filepath.Join(config.TempDir(), manifest.DefaultSPDXFile)
-	if err := manifest.WriteSPDXToFile(needed, spdxFile); err != nil {
-		return downloadPkgList, fmt.Errorf("SPDX file: %w", err)
+
+	//check if file not exists, if yes create it, only need user (not chroot) packages first time
+	if _, err := os.Stat(spdxFile); os.IsNotExist(err) {
+		if err := manifest.WriteSPDXToFile(needed, spdxFile); err != nil {
+			return downloadPkgList, fmt.Errorf("SPDX file: %w", err)
+		}
+		log.Infof("SPDX file created at %s", spdxFile)
 	}
 
 	sorted_pkgs, err := pkgsorter.SortPackages(needed)

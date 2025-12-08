@@ -25,10 +25,11 @@ const (
 	SPDXNamespaceBase = "https://spdx.openedge.dev/docs"
 	DefaultSupplier   = "Organization: UNKNOWN"
 	DefaultLicense    = "NOASSERTION"
-	DefaultSPDXFile   = "spdx_manifest.json"
 	// Path where SBOM will be stored inside the image filesystem
 	ImageSBOMPath = "/usr/share/sbom"
 )
+
+var DefaultSPDXFile = "spdx_manifest.json"
 
 // SoftwarePackageManifest represents the structure of the manifest file.
 type SoftwarePackageManifest struct {
