@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/open-edge-platform/os-image-composer/internal/chroot"
 	"github.com/open-edge-platform/os-image-composer/internal/config"
+	"github.com/open-edge-platform/os-image-composer/internal/config/manifest"
 	"github.com/open-edge-platform/os-image-composer/internal/image/imageboot"
 	"github.com/open-edge-platform/os-image-composer/internal/image/imagedisc"
 	"github.com/open-edge-platform/os-image-composer/internal/image/imagesecure"
@@ -744,8 +745,9 @@ func addImageAdditionalFiles(installRoot string, template *config.ImageTemplate)
 
 	// ADD SBOM FILE AUTOMATICALLY
 	log.Infof("Adding SBOM file to image filesystem")
-	srcSBOM := filepath.Join(config.TempDir(), "spdx_manifest.json")
-	dstSBOM := filepath.Join(installRoot, "/usr/share/sbom/spdx_manifest.json")
+	spdxNm := manifest.DefaultSPDXFile
+	srcSBOM := filepath.Join(config.TempDir(), spdxNm)
+	dstSBOM := filepath.Join(installRoot, manifest.ImageSBOMPath, spdxNm)
 
 	// Check if source SBOM exists
 	if _, err := os.Stat(srcSBOM); os.IsNotExist(err) {
