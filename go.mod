@@ -1,6 +1,6 @@
 module github.com/open-edge-platform/os-image-composer
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.5
 
@@ -37,7 +37,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20170218160415-a3153f7040e9 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 )
