@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/open-edge-platform/os-image-composer/internal/config"
-	"github.com/open-edge-platform/os-image-composer/internal/config/manifest"
 	"github.com/open-edge-platform/os-image-composer/internal/ospackage"
 	"github.com/open-edge-platform/os-image-composer/internal/ospackage/pkgfetcher"
 	"github.com/open-edge-platform/os-image-composer/internal/ospackage/pkgsorter"
@@ -415,7 +414,13 @@ func WriteArrayToFile(arr []string, title string) (string, error) {
 	return filename, nil
 }
 
-func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]string, error) {
+// DownloadPackages downloads packages and returns the list of downloaded package names.
+func DownloadPackages(pkgList []string, destDir, dotFile string) ([]string, error) {
+	downloadedPkgs, _, err := DownloadPackagesComplete(pkgList, destDir, dotFile)
+	return downloadedPkgs, err
+}
+
+func DownloadPackagesComplete(pkgList []string, destDir, dotFile string) ([]string, []ospackage.PackageInfo, error) {
 	var downloadPkgList []string
 
 	log := logger.Logger()
@@ -435,42 +440,30 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	}
 
 	if err != nil {
-		return downloadPkgList, fmt.Errorf("getting packages: %w", err)
+		return downloadPkgList, nil, fmt.Errorf("getting packages: %w", err)
 	}
 
 	// Fetch the entire user repos package list
 	userpkg, err := UserPackages()
 	if err != nil {
 		log.Debugf("getting user packages failed: %v", err)
-		return downloadPkgList, fmt.Errorf("user package fetch failed: %w", err)
+		return downloadPkgList, nil, fmt.Errorf("user package fetch failed: %w", err)
 	}
 	all = append(all, userpkg...)
 
 	// Match the packages in the template against all the packages
 	req, err := MatchRequested(pkgList, all)
 	if err != nil {
-		return downloadPkgList, fmt.Errorf("matching packages: %w", err)
+		return downloadPkgList, nil, fmt.Errorf("matching packages: %w", err)
 	}
 	log.Infof("matched a total of %d packages", len(req))
 
 	// Resolve the dependencies of the requested packages
 	needed, err := Resolve(req, all)
 	if err != nil {
-		return downloadPkgList, fmt.Errorf("resolving packages: %w", err)
+		return downloadPkgList, nil, fmt.Errorf("resolving packages: %w", err)
 	}
 	log.Infof("resolved %d packages", len(needed))
-
-	// Generate SPDX manifest, generated in temp directory
-	manifest.DefaultSPDXFile = filepath.Join("spdx_manifest_deb_" + strings.ReplaceAll(RepoCfg.Name, " ", "_") + ".json")
-	spdxFile := filepath.Join(config.TempDir(), manifest.DefaultSPDXFile)
-
-	//check if file not exists, if yes create it, only need user (not chroot) packages first time
-	if _, err := os.Stat(spdxFile); os.IsNotExist(err) {
-		if err := manifest.WriteSPDXToFile(needed, spdxFile); err != nil {
-			return downloadPkgList, fmt.Errorf("SPDX file: %w", err)
-		}
-		log.Infof("SPDX file created at %s", spdxFile)
-	}
 
 	sorted_pkgs, err := pkgsorter.SortPackages(needed)
 	if err != nil {
@@ -495,23 +488,23 @@ func DownloadPackages(pkgList []string, destDir string, dotFile string) ([]strin
 	// Ensure dest directory exists
 	absDestDir, err := filepath.Abs(destDir)
 	if err != nil {
-		return downloadPkgList, fmt.Errorf("resolving cache directory: %w", err)
+		return downloadPkgList, nil, fmt.Errorf("resolving cache directory: %w", err)
 	}
 	if err := os.MkdirAll(absDestDir, 0755); err != nil {
-		return downloadPkgList, fmt.Errorf("creating cache directory %s: %w", absDestDir, err)
+		return downloadPkgList, nil, fmt.Errorf("creating cache directory %s: %w", absDestDir, err)
 	}
 
 	// Download packages using configured workers and cache directory
 	log.Infof("downloading %d packages to %s using %d workers", len(urls), absDestDir, config.Workers())
 	if err := pkgfetcher.FetchPackages(urls, absDestDir, config.Workers()); err != nil {
-		return downloadPkgList, fmt.Errorf("fetch failed: %w", err)
+		return downloadPkgList, nil, fmt.Errorf("fetch failed: %w", err)
 	}
 	log.Info("all downloads complete")
 
 	// Verify downloaded packages
 	if err := Validate(destDir, downloadPkgList); err != nil {
-		return downloadPkgList, fmt.Errorf("verification failed: %w", err)
+		return downloadPkgList, nil, fmt.Errorf("verification failed: %w", err)
 	}
 
-	return downloadPkgList, nil
+	return downloadPkgList, needed, nil
 }
