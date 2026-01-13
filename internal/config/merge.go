@@ -284,26 +284,15 @@ func mergeAdditionalFiles(defaultFiles, userFiles []AdditionalFileInfo) []Additi
 }
 
 func mergeConfigurations(defaultConfigs, userConfigs []ConfigurationInfo) []ConfigurationInfo {
-	// Create a map to track unique configurations by their command
-	configMap := make(map[string]ConfigurationInfo)
+	// Start with all default configurations
+	merged := make([]ConfigurationInfo, len(defaultConfigs))
+	copy(merged, defaultConfigs)
 
-	// Add default configurations first
-	for _, config := range defaultConfigs {
-		configMap[config.Cmd] = config
-	}
+	// Add all user configurations
+	// User configurations are appended to preserve intentional duplicates
+	merged = append(merged, userConfigs...)
 
-	// Add/override with user configurations
-	for _, config := range userConfigs {
-		configMap[config.Cmd] = config
-	}
-
-	// Convert map back to slice
-	mergedConfigs := make([]ConfigurationInfo, 0, len(configMap))
-	for _, config := range configMap {
-		mergedConfigs = append(mergedConfigs, config)
-	}
-
-	return mergedConfigs
+	return merged
 }
 
 // mergeUsers merges user configurations
