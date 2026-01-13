@@ -25,7 +25,7 @@ import (
 	"github.com/open-edge-platform/os-image-composer/internal/utils/logger"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/mount"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/shell"
-	"github.com/open-edge-platform/os-image-composer/internal/utils/slice"	
+	"github.com/open-edge-platform/os-image-composer/internal/utils/slice"
 )
 
 type ImageOsInterface interface {

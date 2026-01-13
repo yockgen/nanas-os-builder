@@ -80,11 +80,11 @@ type ImageTemplate struct {
 	PackageRepositories []PackageRepository `yaml:"packageRepositories,omitempty"`
 
 	// Explicitly excluded from YAML serialization/deserialization
-	PathList          []string `yaml:"-"`
-	BootloaderPkgList []string `yaml:"-"`
-	EssentialPkgList  []string `yaml:"-"`
-	KernelPkgList     []string `yaml:"-"`
-	FullPkgList       []string `yaml:"-"`
+	PathList          []string                `yaml:"-"`
+	BootloaderPkgList []string                `yaml:"-"`
+	EssentialPkgList  []string                `yaml:"-"`
+	KernelPkgList     []string                `yaml:"-"`
+	FullPkgList       []string                `yaml:"-"`
 	FullPkgListBom    []ospackage.PackageInfo `yaml:"-"`
 }
 
