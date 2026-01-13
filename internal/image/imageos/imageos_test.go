@@ -3978,7 +3978,28 @@ func TestImageConfigurationWorkflowIntegration(t *testing.T) {
 
 			tempDir := t.TempDir()
 			installRoot := filepath.Join(tempDir, "install")
+
 			os.MkdirAll(installRoot, 0755)
+			if err := os.MkdirAll(installRoot, 0755); err != nil {
+				t.Fatalf("Failed to create install directory: %v", err)
+			}
+
+			// Defer cleanup function to fix permissions
+			defer func() {
+				// Make all files and directories writable before cleanup
+				if err := filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+					if err == nil {
+						if chmodErr := os.Chmod(path, 0755); chmodErr != nil {
+							// Log chmod errors but continue cleanup
+							t.Logf("Warning: failed to chmod %s during cleanup: %v", path, chmodErr)
+						}
+					}
+					return nil
+				}); err != nil {
+					// Log error but don't fail test during cleanup
+					t.Logf("Warning: failed to walk directory during cleanup: %v", err)
+				}
+			}()
 
 			// Test individual components based on template content
 			if tc.template.SystemConfig.HostName != "" {
@@ -4195,7 +4216,39 @@ func TestSystemConfigurationErrorRecovery(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			installRoot := filepath.Join(tempDir, "install")
+<<<<<<< HEAD
 			os.MkdirAll(installRoot, 0755)
+=======
+			if err := os.MkdirAll(installRoot, 0755); err != nil {
+				t.Fatalf("Failed to create install directory: %v", err)
+			}
+
+			// Use t.Cleanup to ensure permissions are fixed before test cleanup
+			t.Cleanup(func() {
+				// Make all files and directories writable recursively
+				if err := filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+					if err == nil {
+						if info.IsDir() {
+							if chmodErr := os.Chmod(path, 0755); chmodErr != nil { // rwxr-xr-x for directories
+								t.Logf("Warning: failed to chmod directory %s during cleanup: %v", path, chmodErr)
+							}
+						} else {
+							if chmodErr := os.Chmod(path, 0644); chmodErr != nil { // rw-r--r-- for files, but owner can still delete
+								t.Logf("Warning: failed to chmod file %s during cleanup: %v", path, chmodErr)
+							}
+						}
+					}
+					return nil
+				}); err != nil {
+					// Log error but don't fail test during cleanup
+					t.Logf("Warning: failed to walk directory during cleanup: %v", err)
+				}
+				// Make the entire directory writable by owner to ensure cleanup works
+				if err := os.Chmod(tempDir, 0755); err != nil {
+					t.Logf("Warning: failed to chmod temp directory during cleanup: %v", err)
+				}
+			})
+>>>>>>> a6a5a2d (Fixing unit test issue attempt 4)
 
 			template := tc.setupFunc(tempDir)
 
