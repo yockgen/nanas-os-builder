@@ -195,6 +195,10 @@ func mergeSystemConfig(defaultConfig, userConfig SystemConfig) SystemConfig {
 		merged.HookScripts = mergeHookScripts(defaultConfig.HookScripts, userConfig.HookScripts)
 	}
 
+	if len(userConfig.Configurations) > 0 {
+		merged.Configurations = mergeConfigurations(defaultConfig.Configurations, userConfig.Configurations)
+	}
+
 	// Merge bootloader config
 	if !isEmptyBootloader(userConfig.Bootloader) {
 		merged.Bootloader = mergeBootloader(defaultConfig.Bootloader, userConfig.Bootloader)
@@ -277,6 +281,29 @@ func mergeAdditionalFiles(defaultFiles, userFiles []AdditionalFileInfo) []Additi
 	}
 
 	return mergedFiles
+}
+
+func mergeConfigurations(defaultConfigs, userConfigs []ConfigurationInfo) []ConfigurationInfo {
+	// Create a map to track unique configurations by their command
+	configMap := make(map[string]ConfigurationInfo)
+
+	// Add default configurations first
+	for _, config := range defaultConfigs {
+		configMap[config.Cmd] = config
+	}
+
+	// Add/override with user configurations
+	for _, config := range userConfigs {
+		configMap[config.Cmd] = config
+	}
+
+	// Convert map back to slice
+	mergedConfigs := make([]ConfigurationInfo, 0, len(configMap))
+	for _, config := range configMap {
+		mergedConfigs = append(mergedConfigs, config)
+	}
+
+	return mergedConfigs
 }
 
 // mergeUsers merges user configurations
