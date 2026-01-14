@@ -56,6 +56,7 @@ systemConfig:
     - cryptsetup-bin
     - openssh-server
     - systemd-resolved
+    - curl
     # GUI packages
     - xfce4 
     - xfce4-goodies    
