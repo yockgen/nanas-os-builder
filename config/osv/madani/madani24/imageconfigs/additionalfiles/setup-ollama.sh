@@ -20,9 +20,13 @@ while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
     sleep 5
 done
 
-# 2. Ensure Curl is installed
+# 2. Ensure Curl and zstd installed
 if ! command -v curl >/dev/null 2>&1; then
     apt-get install -y curl
+fi
+
+if ! command -v zstd >/dev/null 2>&1; then
+    apt-get install -y zstd
 fi
 
 # 3. Use the Official Install script but ensure it's non-interactive
