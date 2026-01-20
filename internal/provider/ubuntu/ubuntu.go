@@ -2,6 +2,7 @@ package ubuntu
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/open-edge-platform/os-image-composer/internal/chroot"
@@ -144,6 +145,30 @@ func (p *ubuntu) buildInitrdImage(template *config.ImageTemplate) error {
 }
 
 func (p *ubuntu) buildIsoImage(template *config.ImageTemplate) error {
+	// Step 1: Check if raw image exists, if not build it
+	log.Infof("Checking for raw image before building ISO...")
+
+	// Create a raw template by modifying the image type
+	rawTemplate := *template
+	rawTemplate.Target.ImageType = "raw"
+
+	// Check if raw image exists
+	rawImageExists, err := p.checkRawImageExists(&rawTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to check for raw image: %w", err)
+	}
+
+	if !rawImageExists {
+		log.Infof("Raw image not found, building raw image first...")
+		if err := p.buildRawImage(&rawTemplate); err != nil {
+			return fmt.Errorf("failed to build raw image: %w", err)
+		}
+		log.Infof("Raw image built successfully")
+	} else {
+		log.Infof("Raw image found, proceeding with ISO build...")
+	}
+
+	// Step 2: Build ISO with initrd and raw image
 	// Create IsoMaker with template (dependency injection)
 	isoMaker, err := isomaker.NewIsoMaker(p.chrootEnv, template)
 	if err != nil {
@@ -158,6 +183,45 @@ func (p *ubuntu) buildIsoImage(template *config.ImageTemplate) error {
 	return isoMaker.BuildIsoImage()
 }
 
+func (p *ubuntu) checkRawImageExists(template *config.ImageTemplate) (bool, error) {
+	globalWorkDir, err := config.WorkDir()
+	if err != nil {
+		return false, fmt.Errorf("failed to get work directory: %w", err)
+	}
+
+	providerId := system.GetProviderId(
+		template.Target.OS,
+		template.Target.Dist,
+		template.Target.Arch,
+	)
+
+	rawImageBuildDir := filepath.Join(
+		globalWorkDir,
+		providerId,
+		"imagebuild",
+		template.GetSystemConfigName(),
+	)
+
+	// Check if directory exists
+	if _, err := os.Stat(rawImageBuildDir); os.IsNotExist(err) {
+		return false, nil
+	}
+
+	// Search for raw image files
+	patterns := []string{"*.raw", "*.raw.gz", "*.raw.xz", "*.qcow2", "*.qcow2.gz"}
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(rawImageBuildDir, pattern))
+		if err != nil {
+			continue
+		}
+		if len(matches) > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func (p *ubuntu) PostProcess(template *config.ImageTemplate, err error) error {
 	if err := p.chrootEnv.CleanupChrootEnv(template.Target.OS,
 		template.Target.Dist, template.Target.Arch); err != nil {
@@ -168,18 +232,18 @@ func (p *ubuntu) PostProcess(template *config.ImageTemplate, err error) error {
 
 func (p *ubuntu) installHostDependency() error {
 	var dependencyInfo = map[string]string{
-		"mmdebstrap":     "mmdebstrap",     // For the chroot env build
-		"mkfs.fat":       "dosfstools",     // For the FAT32 boot partition creation
-		"mformat":        "mtools",         // For writing files to FAT32 partition
-		"xorriso":        "xorriso",        // For ISO image creation
-		"qemu-img":       "qemu-utils",     // For image file format conversion
-		"ukify":          "systemd-ukify",  // For the UKI image creation
-		"grub-mkimage":   "grub-common",    // For ISO image UEFI Grub binary creation
-		"veritysetup":    "cryptsetup",     // For the veritysetup command
-		"sbsign":         "sbsigntool",     // For the UKI image creation
-		"ubuntu-keyring": "ubuntu-keyring", // For Ubuntu repository GPG keys
+		"mmdebstrap":       "mmdebstrap",       // For the chroot env build
+		"mkfs.fat":         "dosfstools",       // For the FAT32 boot partition creation
+		"mformat":          "mtools",           // For writing files to FAT32 partition
+		"xorriso":          "xorriso",          // For ISO image creation
+		"qemu-img":         "qemu-utils",       // For image file format conversion
+		"ukify":            "systemd-ukify",    // For the UKI image creation
+		"grub-mkimage":     "grub-common",      // For ISO image UEFI Grub binary creation
+		"veritysetup":      "cryptsetup",       // For the veritysetup command
+		"sbsign":           "sbsigntool",       // For the UKI image creation
+		"ubuntu-keyring":   "ubuntu-keyring",   // For Ubuntu repository GPG keys
 		"systemd-boot-efi": "systemd-boot-efi", // For UKI required file /usr/lib/systemd/boot/efi/linuxx64.efi.stub
-		
+
 	}
 	hostPkgManager, err := system.GetHostOsPkgManager()
 	if err != nil {

@@ -84,6 +84,16 @@ func (isoMaker *IsoMaker) BuildIsoImage() (err error) {
 
 	log.Infof("Building ISO image for: %s", isoMaker.template.GetImageName())
 
+	// Step 1: Check for raw image and get its path
+	rawImagePath, err := isoMaker.findRawImage(isoMaker.template)
+	if err != nil {
+		return fmt.Errorf("failed to find raw image: %w", err)
+	}
+	if rawImagePath == "" {
+		log.Warnf("No raw image found - ISO will be created without embedded raw image")
+	}
+
+	// Step 2: Build initrd
 	if err := isoMaker.buildInitrd(isoMaker.template); err != nil {
 		return fmt.Errorf("failed to build initrd image: %w", err)
 	}
@@ -99,7 +109,7 @@ func (isoMaker *IsoMaker) BuildIsoImage() (err error) {
 
 	initrdRootfsPath := isoMaker.InitrdMaker.GetInitrdRootfsPath()
 	initrdFilePath := isoMaker.InitrdMaker.GetInitrdFilePath()
-	if err := isoMaker.createIso(isoMaker.template, initrdRootfsPath, initrdFilePath, isoFilePath); err != nil {
+	if err := isoMaker.createIso(isoMaker.template, initrdRootfsPath, initrdFilePath, isoFilePath, rawImagePath); err != nil {
 		return fmt.Errorf("failed to create ISO image: %w", err)
 	}
 
@@ -154,6 +164,91 @@ func (isoMaker *IsoMaker) getInitrdTemplate(template *config.ImageTemplate) (*co
 	}
 
 	return initrdTemplate, nil
+}
+
+func (isoMaker *IsoMaker) getRawTemplate(template *config.ImageTemplate) (*config.ImageTemplate, error) {
+	// Create a raw template by copying the ISO template and changing imageType to raw
+	rawTemplate := *template
+	rawTemplate.Target.ImageType = "raw"
+	return &rawTemplate, nil
+}
+
+func (isoMaker *IsoMaker) findRawImage(template *config.ImageTemplate) (string, error) {
+	// Get raw template to determine expected image name and location
+	rawTemplate, err := isoMaker.getRawTemplate(template)
+	if err != nil {
+		return "", fmt.Errorf("failed to get raw template: %w", err)
+	}
+
+	// Construct the expected raw image build directory
+	globalWorkDir, err := config.WorkDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get work directory: %w", err)
+	}
+
+	providerId := system.GetProviderId(
+		rawTemplate.Target.OS,
+		rawTemplate.Target.Dist,
+		rawTemplate.Target.Arch,
+	)
+
+	rawImageBuildDir := filepath.Join(
+		globalWorkDir,
+		providerId,
+		"imagebuild",
+		rawTemplate.GetSystemConfigName(),
+	)
+
+	// Look for raw image files in the build directory
+	if _, err := os.Stat(rawImageBuildDir); os.IsNotExist(err) {
+		log.Infof("Raw image build directory does not exist: %s", rawImageBuildDir)
+		return "", nil
+	}
+
+	// Search for raw image files (*.raw, *.raw.gz, *.qcow2, etc.)
+	patterns := []string{"*.raw", "*.raw.gz", "*.raw.xz", "*.qcow2", "*.qcow2.gz"}
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(rawImageBuildDir, pattern))
+		if err != nil {
+			log.Warnf("Error searching for pattern %s: %v", pattern, err)
+			continue
+		}
+		if len(matches) > 0 {
+			// Return the first match found
+			log.Infof("Found raw image: %s", matches[0])
+			return matches[0], nil
+		}
+	}
+
+	log.Infof("No raw image found in: %s", rawImageBuildDir)
+	return "", nil
+}
+
+func (isoMaker *IsoMaker) copyRawImageToIso(rawImagePath, installRoot string) error {
+	if rawImagePath == "" {
+		// No raw image to copy
+		return nil
+	}
+
+	log.Infof("Copying raw image to ISO: %s", rawImagePath)
+
+	// Create images directory in ISO if it doesn't exist
+	isoImagesDir := filepath.Join(installRoot, "images")
+	if err := os.MkdirAll(isoImagesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create images directory in ISO: %w", err)
+	}
+
+	// Copy raw image to ISO
+	rawImageFileName := filepath.Base(rawImagePath)
+	rawImageDestPath := filepath.Join(isoImagesDir, rawImageFileName)
+
+	log.Infof("Copying raw image from %s to %s", rawImagePath, rawImageDestPath)
+	if err := file.CopyFile(rawImagePath, rawImageDestPath, "--preserve=mode", true); err != nil {
+		return fmt.Errorf("failed to copy raw image to ISO: %w", err)
+	}
+
+	log.Infof("Successfully copied raw image to ISO")
+	return nil
 }
 
 func (isoMaker *IsoMaker) copyConfigFilesToIso(template *config.ImageTemplate, installRoot string) error {
@@ -241,7 +336,7 @@ func (isoMaker *IsoMaker) copyImagePkgsToIso(template *config.ImageTemplate, ins
 	return nil
 }
 
-func (isoMaker *IsoMaker) createIso(template *config.ImageTemplate, initrdRootfsPath, initrdFilePath, isoFilePath string) error {
+func (isoMaker *IsoMaker) createIso(template *config.ImageTemplate, initrdRootfsPath, initrdFilePath, isoFilePath, rawImagePath string) error {
 	var err error
 
 	log.Infof("Creating ISO image...")
@@ -270,6 +365,14 @@ func (isoMaker *IsoMaker) createIso(template *config.ImageTemplate, initrdRootfs
 		}
 	}
 
+	// Copy raw image if available
+	if rawImagePath != "" {
+		log.Infof("Copying raw image to ISO...")
+		if err := isoMaker.copyRawImageToIso(rawImagePath, installRoot); err != nil {
+			return fmt.Errorf("failed to copy raw image to ISO: %w", err)
+		}
+	}
+
 	// Copy kernel and initrd
 	log.Infof("Copying kernel and initrd files...")
 	if err := copyKernelToIsoImagesPath(initrdRootfsPath, isoImagesPath); err != nil {
@@ -286,11 +389,8 @@ func (isoMaker *IsoMaker) createIso(template *config.ImageTemplate, initrdRootfs
 		return fmt.Errorf("failed to copy config files to ISO: %w", err)
 	}
 
-	// Copy image packages to ISO
-	log.Infof("Copying image packages to ISO...")
-	if err := isoMaker.copyImagePkgsToIso(template, installRoot); err != nil {
-		return fmt.Errorf("failed to copy image packages to ISO: %w", err)
-	}
+	// Note: Skipping cache-repo copy to reduce ISO size
+	// Packages can be fetched from network repositories during installation
 
 	// Create GRUB config for EFI boot
 	if err := createGrubCfg(installRoot, imageName); err != nil {

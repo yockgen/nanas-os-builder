@@ -2,6 +2,7 @@ package azl
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/open-edge-platform/os-image-composer/internal/chroot"
@@ -168,6 +169,30 @@ func (p *AzureLinux) buildInitrdImage(template *config.ImageTemplate) error {
 }
 
 func (p *AzureLinux) buildIsoImage(template *config.ImageTemplate) error {
+	// Step 1: Check if raw image exists, if not build it
+	log.Infof("Checking for raw image before building ISO...")
+
+	// Create a raw template by modifying the image type
+	rawTemplate := *template
+	rawTemplate.Target.ImageType = "raw"
+
+	// Check if raw image exists
+	rawImageExists, err := p.checkRawImageExists(&rawTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to check for raw image: %w", err)
+	}
+
+	if !rawImageExists {
+		log.Infof("Raw image not found, building raw image first...")
+		if err := p.buildRawImage(&rawTemplate); err != nil {
+			return fmt.Errorf("failed to build raw image: %w", err)
+		}
+		log.Infof("Raw image built successfully")
+	} else {
+		log.Infof("Raw image found, proceeding with ISO build...")
+	}
+
+	// Step 2: Build ISO with initrd and raw image
 	// Create IsoMaker with template (dependency injection)
 	isoMaker, err := isomaker.NewIsoMaker(p.chrootEnv, template)
 	if err != nil {
@@ -195,6 +220,45 @@ func (p *AzureLinux) buildIsoImage(template *config.ImageTemplate) error {
 	displayImageArtifacts(imageBuildDir, "ISO")
 
 	return nil
+}
+
+func (p *AzureLinux) checkRawImageExists(template *config.ImageTemplate) (bool, error) {
+	globalWorkDir, err := config.WorkDir()
+	if err != nil {
+		return false, fmt.Errorf("failed to get work directory: %w", err)
+	}
+
+	providerId := system.GetProviderId(
+		template.Target.OS,
+		template.Target.Dist,
+		template.Target.Arch,
+	)
+
+	rawImageBuildDir := filepath.Join(
+		globalWorkDir,
+		providerId,
+		"imagebuild",
+		template.GetSystemConfigName(),
+	)
+
+	// Check if directory exists
+	if _, err := os.Stat(rawImageBuildDir); os.IsNotExist(err) {
+		return false, nil
+	}
+
+	// Search for raw image files
+	patterns := []string{"*.raw", "*.raw.gz", "*.raw.xz", "*.qcow2", "*.qcow2.gz"}
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(rawImageBuildDir, pattern))
+		if err != nil {
+			continue
+		}
+		if len(matches) > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (p *AzureLinux) PostProcess(template *config.ImageTemplate, err error) error {
