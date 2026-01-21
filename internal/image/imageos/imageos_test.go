@@ -3856,7 +3856,9 @@ func TestAdditionalFilesErrorHandling(t *testing.T) {
 			},
 			setupFunc: func(tempDir string) {
 				sourceFile := filepath.Join(tempDir, "source.txt")
-				os.WriteFile(sourceFile, []byte("test content"), 0644)
+				if err := os.WriteFile(sourceFile, []byte("test content"), 0644); err != nil {
+					panic(fmt.Sprintf("Failed to write test file: %v", err))
+				}
 			},
 			expectError: false,
 			description: "Should copy valid files successfully",
@@ -3868,7 +3870,9 @@ func TestAdditionalFilesErrorHandling(t *testing.T) {
 			},
 			setupFunc: func(tempDir string) {
 				sourceFile := filepath.Join(tempDir, "source.txt")
-				os.WriteFile(sourceFile, []byte("test content"), 0644)
+				if err := os.WriteFile(sourceFile, []byte("test content"), 0644); err != nil {
+					panic(fmt.Sprintf("Failed to write test file: %v", err))
+				}
 			},
 			expectError: false,
 			description: "Should create nested directories for destination",
@@ -3887,7 +3891,9 @@ func TestAdditionalFilesErrorHandling(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			installRoot := filepath.Join(tempDir, "install")
-			os.MkdirAll(installRoot, 0755)
+			if err := os.MkdirAll(installRoot, 0755); err != nil {
+				t.Fatalf("Failed to create install directory: %v", err)
+			}
 
 			if tc.setupFunc != nil {
 				tc.setupFunc(tempDir)
@@ -3988,7 +3994,6 @@ func TestImageConfigurationWorkflowIntegration(t *testing.T) {
 			tempDir := t.TempDir()
 			installRoot := filepath.Join(tempDir, "install")
 
-			os.MkdirAll(installRoot, 0755)
 			if err := os.MkdirAll(installRoot, 0755); err != nil {
 				t.Fatalf("Failed to create install directory: %v", err)
 			}
@@ -4218,7 +4223,6 @@ func TestSystemConfigurationErrorRecovery(t *testing.T) {
 			tempDir := t.TempDir()
 			installRoot := filepath.Join(tempDir, "install")
 
-			os.MkdirAll(installRoot, 0755)
 			if err := os.MkdirAll(installRoot, 0755); err != nil {
 				t.Fatalf("Failed to create install directory: %v", err)
 			}
@@ -4243,7 +4247,9 @@ func TestSystemConfigurationErrorRecovery(t *testing.T) {
 						t.Errorf("%s: hostname configuration panicked: %v", tc.description, r)
 					}
 				}()
-				updateImageHostname(installRoot, template)
+				if err := updateImageHostname(installRoot, template); err != nil {
+					t.Errorf("%s: hostname configuration failed: %v", tc.description, err)
+				}
 			}
 		})
 	}
