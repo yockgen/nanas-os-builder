@@ -140,7 +140,6 @@ type AdditionalFileInfo struct {
 	Final string `yaml:"final"` // path where the file should be placed in the image
 }
 
-
 // HookScriptInfo holds information about hook scripts to be included in the image
 type HookScriptInfo struct {
 	LocalPostRootfs            string `yaml:"local_post_rootfs,omitempty"`             // Local path to post-rootfs script
