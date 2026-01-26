@@ -35,7 +35,7 @@ runcmd:
     echo "Starting sequential setup..."
     chmod +x /opt/software/setup-wait-for-network.sh
     chmod +x /opt/software/setup-ollama.sh
-    chmod +x /opt/software/setup-ollama.shsetup-containers.sh
+    chmod +x /opt/software/setup-containers.sh
     
     # This is the secret: one line, one sequence.
     /opt/software/setup-wait-for-network.sh && \
