@@ -119,6 +119,13 @@ func (imageOs *ImageOs) InstallInitrd() (installRoot, versionInfo string, err er
 		return
 	}
 
+	// Add post rootfs hook call for initrd
+	log.Infof("Post rootfs hook execution for initrd...")
+	if err = hook.HookPostRootfs(imageOs.installRoot, imageOs.template); err != nil {
+		err = fmt.Errorf("Hook post-rootfs failed: %v", err)
+		return
+	}
+
 	log.Infof("Image installation post-processing...")
 	versionInfo, err = imageOs.postImageOsInstall(imageOs.installRoot, imageOs.template)
 	if err != nil {

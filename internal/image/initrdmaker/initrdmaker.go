@@ -136,6 +136,74 @@ func (initrdMaker *InitrdMaker) BuildInitrdImage() (err error) {
 
 	imageName := initrdMaker.template.GetImageName()
 
+	// Check if any initrd image already exists in the build directory
+	initrdPattern := filepath.Join(initrdMaker.ImageBuildDir, fmt.Sprintf("%s-*.img", imageName))
+	matches, err := filepath.Glob(initrdPattern)
+	if err != nil {
+		log.Warnf("Error searching for existing initrd: %v", err)
+		matches = nil
+	}
+
+	// Verify the matched files actually exist and are regular files
+	var existingInitrd string
+	for _, match := range matches {
+		if fileInfo, err := os.Stat(match); err == nil && fileInfo.Mode().IsRegular() {
+			existingInitrd = match
+			break
+		}
+	}
+
+	// Also check for kernel file (vmlinuz-*)
+	kernelPattern := filepath.Join(initrdMaker.ImageBuildDir, "vmlinuz-*")
+	kernelMatches, err := filepath.Glob(kernelPattern)
+	if err != nil {
+		log.Warnf("Error searching for existing kernel: %v", err)
+		kernelMatches = nil
+	}
+
+	// Verify kernel file exists
+	var existingKernel string
+	for _, match := range kernelMatches {
+		if fileInfo, err := os.Stat(match); err == nil && fileInfo.Mode().IsRegular() {
+			existingKernel = match
+			break
+		}
+	}
+
+	if existingInitrd != "" && existingKernel != "" {
+		// Found existing initrd image and kernel, skip rebuild
+		log.Infof("Initrd image already exists, skipping build: %s", existingInitrd)
+		log.Infof("Kernel already exists: %s", existingKernel)
+
+		// Extract version from filename: <imageName>-<version>.img
+		baseName := filepath.Base(existingInitrd)
+		version := strings.TrimSuffix(baseName, ".img")
+		version = strings.TrimPrefix(version, imageName+"-")
+
+		initrdMaker.VersionInfo = version
+		initrdMaker.InitrdFilePath = existingInitrd
+
+		// We still need to set the rootfs path even though we're not rebuilding
+		// This is used by ISO maker - construct expected path
+		providerId := system.GetProviderId(
+			initrdMaker.template.Target.OS,
+			initrdMaker.template.Target.Dist,
+			initrdMaker.template.Target.Arch,
+		)
+		globalWorkDir, _ := config.WorkDir()
+		initrdMaker.InitrdRootfsPath = filepath.Join(globalWorkDir, providerId, "install-root")
+
+		return nil
+	}
+
+	// If either file is missing, log what we're rebuilding
+	if existingInitrd == "" {
+		log.Infof("No existing initrd image found, building new one")
+	}
+	if existingKernel == "" {
+		log.Infof("No existing kernel found, building new one")
+	}
+
 	initrdMaker.InitrdRootfsPath, initrdMaker.VersionInfo, err = initrdMaker.ImageOs.InstallInitrd()
 	if err != nil {
 		if cleanErr := initrdMaker.CleanInitrdRootfs(); cleanErr != nil {

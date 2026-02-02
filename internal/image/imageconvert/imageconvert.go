@@ -80,15 +80,21 @@ func convertImageFile(filePath, imageType string) (string, error) {
 		return "", fmt.Errorf("image file does not exist: %s", filePath)
 	}
 
+	fileName := filepath.Base(filePath)
+	fileNameWithoutExt := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	outputFilePath := filepath.Join(fileDir, fileNameWithoutExt+"."+imageType)
+
+	// Check if the output file already exists
+	if _, err := os.Stat(outputFilePath); err == nil {
+		log.Infof("Output image file already exists, skipping conversion: %s", outputFilePath)
+		return outputFilePath, nil
+	}
+
 	log.Infof("Converting image file %s to type %s", filePath, imageType)
 
 	// Skip trimming for now to avoid file locking conflicts
 	// The -S 4k flag in qemu-img convert will handle sparse optimization
 	log.Debugf("Skipping pre-conversion trimming to avoid file lock conflicts")
-
-	fileName := filepath.Base(filePath)
-	fileNameWithoutExt := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	outputFilePath := filepath.Join(fileDir, fileNameWithoutExt+"."+imageType)
 
 	switch imageType {
 	case "vhd":
