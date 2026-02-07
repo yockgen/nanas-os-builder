@@ -40,12 +40,12 @@ runcmd:
     chmod +x /opt/software/setup-cleanup.sh
     
     # This is the secret: one line, one sequence.
+    /opt/software/setup-cleanup.sh && \
     /opt/software/setup-wait-for-network.sh && \
     /opt/software/setup-ollama.sh && \
     /opt/software/setup-containers.sh && \
-    /opt/software/setup-intel-dlstreamer.sh && \
-    /opt/software/setup-cleanup.sh
-    
+    /opt/software/setup-intel-dlstreamer.sh
+        
     echo "Setup sequence complete."
 EOF
 
