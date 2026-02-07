@@ -102,6 +102,8 @@ systemConfig:
       final: /opt/software/setup-intel-dlstreamer.sh
     - local: ../additionalfiles/setup-cleanup.sh
       final: /opt/software/setup-cleanup.sh
+    - local: ../additionalfiles/run-dlstreamer-webcam.sh
+      final: /opt/software/run-dlstreamer-webcam.sh
                
   hookScripts:
     - local_post_download_packages: ../hookscripts/post_download.sh
