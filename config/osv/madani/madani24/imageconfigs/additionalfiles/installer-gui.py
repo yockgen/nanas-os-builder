@@ -6,7 +6,7 @@ A graphical installer with Calamares-style UI
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib, Pango
+from gi.repository import Gtk, Gdk, GLib, Pango, GdkPixbuf
 import subprocess
 import os
 import sys
@@ -60,13 +60,17 @@ class InstallerWindow(Gtk.Window):
         main_vbox.set_hexpand(True)
         main_vbox.set_vexpand(True)
         
-        # Content area
+        # Content area with wallpaper
+        content_overlay = Gtk.Overlay()
+        content_overlay.get_style_context().add_class("content-area")
+        
         self.content_stack = Gtk.Stack()
         self.content_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
         self.content_stack.set_transition_duration(300)
         self.content_stack.set_hexpand(True)
         self.content_stack.set_vexpand(True)
-        main_vbox.pack_start(self.content_stack, True, True, 0)
+        content_overlay.add(self.content_stack)
+        main_vbox.pack_start(content_overlay, True, True, 0)
         
         # Navigation buttons - pinned to bottom
         button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -109,6 +113,7 @@ class InstallerWindow(Gtk.Window):
         main_box.pack_start(main_vbox, True, True, 0)
         
         # Create pages
+        self.create_choice_page()
         self.create_welcome_page()
         self.create_disk_selection_page()
         self.create_user_config_page()
@@ -204,6 +209,18 @@ class InstallerWindow(Gtk.Window):
         .sidebar-item-completed {
             color: #27ae60;
         }
+        .content-area {
+            background-color: #f5f6fa;
+        }
+        .content-overlay {
+            background-color: rgba(255, 255, 255, 0.92);
+            border-radius: 10px;
+        }
+        .page-box {
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            padding: 20px;
+        }
         """
         
         css_provider = Gtk.CssProvider()
@@ -215,14 +232,25 @@ class InstallerWindow(Gtk.Window):
         )
         
         # Logo/Title
+        logo_path = "/usr/share/madani/mos-logo.png"
+        if os.path.exists(logo_path):
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 240, 240, True)
+            logo = Gtk.Image.new_from_pixbuf(pixbuf)
+        else:
+            logo = Gtk.Image.new_from_icon_name("distributor-logo", Gtk.IconSize.DIALOG)
+            logo.set_pixel_size(240)
+        logo.set_margin_bottom(10)
+        sidebar.pack_start(logo, False, False, 0)
+        
         title = Gtk.Label()
-        title.set_markup("<span size='x-large' weight='bold'>Madani OS</span>")
+        title.set_markup("<span size='large' weight='bold'>Madani OS</span>")
         title.set_margin_bottom(30)
         sidebar.pack_start(title, False, False, 0)
         
         # Steps
         self.sidebar_items = []
         steps = [
+            ("Start", "system-run-symbolic"),
             ("Welcome", "dialog-information-symbolic"),
             ("Select Disk", "drive-harddisk-symbolic"),
             ("User Setup", "system-users-symbolic"),
@@ -301,6 +329,99 @@ class InstallerWindow(Gtk.Window):
         
         self.log("WARNING: No QCOW2 image found!")
     
+    def create_choice_page(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=30)
+        box.set_margin_top(50)
+        box.set_margin_bottom(50)
+        box.set_margin_start(50)
+        box.set_margin_end(50)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_valign(Gtk.Align.CENTER)
+        
+        # Load Madani OS logo
+        logo_path = "/usr/share/madani/mos-logo.png"
+        if os.path.exists(logo_path):
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 512, 512, True)
+            icon = Gtk.Image.new_from_pixbuf(pixbuf)
+        else:
+            icon = Gtk.Image.new_from_icon_name("distributor-logo", Gtk.IconSize.DIALOG)
+            icon.set_pixel_size(512)
+        box.pack_start(icon, False, False, 0)
+        
+        title = Gtk.Label()
+        title.set_markup("<span size='xx-large' weight='bold'>Welcome to Madani OS</span>")
+        box.pack_start(title, False, False, 0)
+        
+        desc = Gtk.Label()
+        desc.set_markup(
+            "You can try Madani OS without making any changes to your computer,\n"
+            "or install it permanently."
+        )
+        desc.set_line_wrap(True)
+        desc.set_justify(Gtk.Justification.CENTER)
+        box.pack_start(desc, False, False, 20)
+        
+        # Buttons container
+        button_container = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=20)
+        button_container.set_halign(Gtk.Align.CENTER)
+        
+        # Try button
+        try_button = Gtk.Button()
+        try_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        try_box.set_margin_top(20)
+        try_box.set_margin_bottom(20)
+        try_box.set_margin_start(30)
+        try_box.set_margin_end(30)
+        try_icon = Gtk.Image.new_from_icon_name("media-playback-start", Gtk.IconSize.DIALOG)
+        try_icon.set_pixel_size(64)
+        try_box.pack_start(try_icon, False, False, 0)
+        try_label = Gtk.Label()
+        try_label.set_markup("<span size='large' weight='bold'>Try Madani OS</span>")
+        try_box.pack_start(try_label, False, False, 0)
+        try_desc = Gtk.Label()
+        try_desc.set_markup("<small>Boot into live environment\nwithout installation</small>")
+        try_desc.set_justify(Gtk.Justification.CENTER)
+        try_box.pack_start(try_desc, False, False, 0)
+        try_button.add(try_box)
+        try_button.connect("clicked", self.on_try_clicked)
+        button_container.pack_start(try_button, False, False, 0)
+        
+        # Install button
+        install_button = Gtk.Button()
+        install_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        install_box.set_margin_top(20)
+        install_box.set_margin_bottom(20)
+        install_box.set_margin_start(30)
+        install_box.set_margin_end(30)
+        install_icon = Gtk.Image.new_from_icon_name("system-software-install", Gtk.IconSize.DIALOG)
+        install_icon.set_pixel_size(64)
+        install_box.pack_start(install_icon, False, False, 0)
+        install_label = Gtk.Label()
+        install_label.set_markup("<span size='large' weight='bold'>Install Madani OS</span>")
+        install_box.pack_start(install_label, False, False, 0)
+        install_desc = Gtk.Label()
+        install_desc.set_markup("<small>Install Madani OS\npermanently to your disk</small>")
+        install_desc.set_justify(Gtk.Justification.CENTER)
+        install_box.pack_start(install_desc, False, False, 0)
+        install_button.add(install_box)
+        install_button.connect("clicked", self.on_install_clicked)
+        install_button.get_style_context().add_class("suggested-action")
+        button_container.pack_start(install_button, False, False, 0)
+        
+        box.pack_start(button_container, False, False, 0)
+        
+        self.content_stack.add_titled(box, "choice", "Choice")
+    
+    def on_try_clicked(self, widget):
+        self.log("User selected Try - exiting installer")
+        self.save_final_log()
+        Gtk.main_quit()
+    
+    def on_install_clicked(self, widget):
+        self.log("User selected Install - continuing to installation")
+        self.current_page = 1
+        self.show_page(1)
+    
     def create_welcome_page(self):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
         box.set_margin_top(50)
@@ -310,8 +431,14 @@ class InstallerWindow(Gtk.Window):
         box.set_halign(Gtk.Align.CENTER)
         box.set_valign(Gtk.Align.CENTER)
         
-        icon = Gtk.Image.new_from_icon_name("distributor-logo", Gtk.IconSize.DIALOG)
-        icon.set_pixel_size(128)
+        # Load Madani OS logo
+        logo_path = "/usr/share/madani/mos-logo.png"
+        if os.path.exists(logo_path):
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 512, 512, True)
+            icon = Gtk.Image.new_from_pixbuf(pixbuf)
+        else:
+            icon = Gtk.Image.new_from_icon_name("distributor-logo", Gtk.IconSize.DIALOG)
+            icon.set_pixel_size(512)
         box.pack_start(icon, False, False, 0)
         
         title = Gtk.Label()
@@ -435,13 +562,13 @@ class InstallerWindow(Gtk.Window):
         self.username_entry.set_hexpand(True)
         grid.attach(self.username_entry, 1, 0, 1, 1)
         
-        # Hostname
-        label = Gtk.Label(label="Hostname:")
+        # Computer Name
+        label = Gtk.Label(label="Computer Name:")
         label.set_halign(Gtk.Align.END)
         grid.attach(label, 0, 1, 1, 1)
         
         self.hostname_entry = Gtk.Entry()
-        self.hostname_entry.set_placeholder_text("Enter hostname")
+        self.hostname_entry.set_placeholder_text("Enter computer name")
         grid.attach(self.hostname_entry, 1, 1, 1, 1)
         
         # Password
@@ -535,8 +662,14 @@ class InstallerWindow(Gtk.Window):
         box.set_halign(Gtk.Align.CENTER)
         box.set_valign(Gtk.Align.CENTER)
         
-        icon = Gtk.Image.new_from_icon_name("emblem-default", Gtk.IconSize.DIALOG)
-        icon.set_pixel_size(128)
+        # Success icon or logo
+        logo_path = "/usr/share/madani/mos-logo.png"
+        if os.path.exists(logo_path):
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 512, 512, True)
+            icon = Gtk.Image.new_from_pixbuf(pixbuf)
+        else:
+            icon = Gtk.Image.new_from_icon_name("emblem-default", Gtk.IconSize.DIALOG)
+            icon.set_pixel_size(512)
         box.pack_start(icon, False, False, 0)
         
         title = Gtk.Label()
@@ -556,7 +689,7 @@ class InstallerWindow(Gtk.Window):
         self.content_stack.add_titled(box, "finish", "Finish")
     
     def on_back(self, widget):
-        if self.current_page > 0:
+        if self.current_page > 1:  # Can't go back past welcome page (page 1)
             self.current_page -= 1
             self.show_page(self.current_page)
     
@@ -565,46 +698,54 @@ class InstallerWindow(Gtk.Window):
         if not self.validate_current_page():
             return
         
-        if self.current_page < 5:
+        if self.current_page < 6:
             self.current_page += 1
             
-            if self.current_page == 3:  # Summary page
+            if self.current_page == 4:  # Summary page
                 self.update_summary()
             
             self.show_page(self.current_page)
             
-            if self.current_page == 4:  # Installation page
+            if self.current_page == 5:  # Installation page
                 self.next_button.set_sensitive(False)
                 self.back_button.set_sensitive(False)
                 # Start installation after showing the page
                 GLib.timeout_add(500, self.perform_installation)
                 return
-        elif self.current_page == 5:  # Finish page
+        elif self.current_page == 6:  # Finish page
             # Reboot
             subprocess.run(["reboot"])
     
     def show_page(self, page):
-        pages = ["welcome", "disk", "user", "summary", "install", "finish"]
+        pages = ["choice", "welcome", "disk", "user", "summary", "install", "finish"]
         self.content_stack.set_visible_child_name(pages[page])
         self.update_sidebar(page)
         
-        # Update buttons
-        self.back_button.set_sensitive(page > 0 and page < 4)
-        
-        if page == 0:
-            self.next_button.set_label("Get Started →")
-        elif page == 3:
-            self.next_button.set_label("Install Now")
-        elif page == 5:
-            self.next_button.set_label("Reboot")
-        else:
-            self.next_button.set_label("Next →")
-        
-        if page == 4:  # Installing
+        # Update buttons - hide navigation buttons on choice page
+        if page == 0:  # Choice page
+            self.back_button.set_visible(False)
             self.next_button.set_visible(False)
+            self.cancel_button.set_visible(False)
+        else:
+            self.back_button.set_visible(True)
+            self.next_button.set_visible(True)
+            self.cancel_button.set_visible(True)
+            self.back_button.set_sensitive(page > 1 and page < 5)
+            
+            if page == 1:
+                self.next_button.set_label("Get Started →")
+            elif page == 4:
+                self.next_button.set_label("Install Now")
+            elif page == 6:
+                self.next_button.set_label("Reboot")
+            else:
+                self.next_button.set_label("Next →")
+            
+            if page == 5:  # Installing
+                self.next_button.set_visible(False)
     
     def validate_current_page(self):
-        if self.current_page == 1:  # Disk selection
+        if self.current_page == 2:  # Disk selection
             selection = self.disk_view.get_selection()
             model, treeiter = selection.get_selected()
             if treeiter is None:
@@ -620,7 +761,7 @@ class InstallerWindow(Gtk.Window):
                 return False
             self.selected_disk = model[treeiter][3]
         
-        elif self.current_page == 2:  # User config
+        elif self.current_page == 3:  # User config
             self.username = self.username_entry.get_text().strip()
             self.hostname = self.hostname_entry.get_text().strip()
             self.password = self.password_entry.get_text()
@@ -631,7 +772,7 @@ class InstallerWindow(Gtk.Window):
                 return False
             
             if not self.hostname:
-                self.show_error("Please enter a hostname")
+                self.show_error("Please enter a computer name")
                 return False
             
             if not self.password:
@@ -649,7 +790,7 @@ class InstallerWindow(Gtk.Window):
 
 <b>User Configuration:</b>
   • Username: {self.username}
-  • Hostname: {self.hostname}
+  • Computer Name: {self.hostname}
   • Password: {'•' * len(self.password)}
 
 <b>Image:</b> {os.path.basename(self.qcow2_image) if self.qcow2_image else 'N/A'}
@@ -691,7 +832,14 @@ class InstallerWindow(Gtk.Window):
                 
                 # Reload partition table
                 subprocess.run(["partprobe", self.selected_disk], capture_output=True)
+                import time
+                time.sleep(2)
                 
+                # Configure the installed system
+                GLib.idle_add(self.update_install_status, "Configuring system...", 0.96)
+                self.configure_installed_system()
+                
+                GLib.idle_add(self.update_install_status, "Installation complete!", 1.0)
                 GLib.idle_add(self.installation_complete)
                 
             except Exception as e:
@@ -702,14 +850,120 @@ class InstallerWindow(Gtk.Window):
         thread.start()
         return False  # Don't repeat timeout
     
+    def configure_installed_system(self):
+        """Configure username, hostname, and password on the installed system"""
+        mount_point = "/mnt/madani-install"
+        
+        try:
+            # Create mount point
+            os.makedirs(mount_point, exist_ok=True)
+            
+            # Find and mount the root partition (usually partition 2)
+            result = subprocess.run(
+                ["lsblk", "-ln", "-o", "NAME,FSTYPE,MOUNTPOINT", self.selected_disk],
+                capture_output=True, text=True
+            )
+            
+            root_partition = None
+            for line in result.stdout.strip().split('\n'):
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] in ['ext4', 'xfs', 'btrfs']:
+                    # Get the full device path
+                    part_name = parts[0]
+                    if not part_name.startswith('/dev/'):
+                        if 'nvme' in self.selected_disk or 'mmcblk' in self.selected_disk:
+                            root_partition = f"/dev/{part_name}"
+                        else:
+                            root_partition = f"/dev/{part_name}"
+                    else:
+                        root_partition = part_name
+                    break
+            
+            if not root_partition:
+                self.log("Could not find root partition, trying default...")
+                # Try default partition naming
+                if 'nvme' in self.selected_disk or 'mmcblk' in self.selected_disk:
+                    root_partition = f"{self.selected_disk}p2"
+                else:
+                    root_partition = f"{self.selected_disk}2"
+            
+            self.log(f"Mounting root partition: {root_partition}")
+            subprocess.run(["mount", root_partition, mount_point], check=True)
+            
+            # Set hostname
+            self.log(f"Setting hostname to: {self.hostname}")
+            with open(f"{mount_point}/etc/hostname", "w") as f:
+                f.write(f"{self.hostname}\n")
+            
+            # Update /etc/hosts
+            hosts_content = f"""127.0.0.1	localhost
+127.0.1.1	{self.hostname}
+
+::1		localhost ip6-localhost ip6-loopback
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
+"""
+            with open(f"{mount_point}/etc/hosts", "w") as f:
+                f.write(hosts_content)
+            
+            # Create user and set password using chroot
+            self.log(f"Creating user: {self.username}")
+            
+            # Mount necessary filesystems for chroot
+            subprocess.run(["mount", "-t", "proc", "proc", f"{mount_point}/proc"], check=False)
+            subprocess.run(["mount", "-t", "sysfs", "sys", f"{mount_point}/sys"], check=False)
+            subprocess.run(["mount", "-o", "bind", "/dev", f"{mount_point}/dev"], check=False)
+            subprocess.run(["mount", "-t", "devpts", "devpts", f"{mount_point}/dev/pts"], check=False)
+            
+            # Create user with home directory
+            subprocess.run(
+                ["chroot", mount_point, "useradd", "-m", "-s", "/bin/bash", self.username],
+                check=True
+            )
+            
+            # Set user password
+            subprocess.run(
+                ["chroot", mount_point, "bash", "-c", f"echo '{self.username}:{self.password}' | chpasswd"],
+                check=True
+            )
+            
+            # Add user to sudo group
+            subprocess.run(
+                ["chroot", mount_point, "usermod", "-aG", "sudo", self.username],
+                check=False  # sudo group might not exist
+            )
+            
+            # Set root password to the same
+            subprocess.run(
+                ["chroot", mount_point, "bash", "-c", f"echo 'root:{self.password}' | chpasswd"],
+                check=True
+            )
+            
+            self.log("System configuration completed successfully")
+            
+        except Exception as e:
+            self.log(f"Error configuring system: {e}")
+            import traceback
+            self.log(traceback.format_exc())
+        
+        finally:
+            # Unmount everything
+            self.log("Unmounting filesystems...")
+            subprocess.run(["umount", "-f", f"{mount_point}/dev/pts"], check=False)
+            subprocess.run(["umount", "-f", f"{mount_point}/dev"], check=False)
+            subprocess.run(["umount", "-f", f"{mount_point}/sys"], check=False)
+            subprocess.run(["umount", "-f", f"{mount_point}/proc"], check=False)
+            subprocess.run(["umount", "-f", mount_point], check=False)
+            subprocess.run(["sync"])
+    
     def update_install_status(self, status, progress):
         self.install_status.set_text(status)
         self.install_progress.set_fraction(progress)
         return False
     
     def installation_complete(self):
-        self.current_page = 5
-        self.show_page(5)
+        self.current_page = 6
+        self.show_page(6)
         self.next_button.set_visible(True)
         self.next_button.set_sensitive(True)
         return False
@@ -725,8 +979,8 @@ class InstallerWindow(Gtk.Window):
         dialog.format_secondary_text(f"Error: {error}")
         dialog.run()
         dialog.destroy()
-        self.current_page = 0
-        self.show_page(0)
+        self.current_page = 1
+        self.show_page(1)
         self.back_button.set_sensitive(False)
         self.next_button.set_sensitive(True)
         return False

@@ -308,34 +308,6 @@ func (isoMaker *IsoMaker) copyConfigFilesToIso(template *config.ImageTemplate, i
 	return nil
 }
 
-func (isoMaker *IsoMaker) copyImagePkgsToIso(template *config.ImageTemplate, installRoot string) error {
-	pkgCacheSrcDir := isoMaker.ChrootEnv.GetChrootPkgCacheDir()
-	pkgCacheDestDir := filepath.Join(installRoot, "cache-repo")
-	for _, pkg := range template.FullPkgList {
-		pkgFileSrcPath := filepath.Join(pkgCacheSrcDir, pkg)
-		if _, err := os.Stat(pkgFileSrcPath); os.IsNotExist(err) {
-			log.Errorf("Package file does not exist in cache: %s", pkgFileSrcPath)
-			return fmt.Errorf("package file does not exist in cache: %s", pkgFileSrcPath)
-		}
-		pkgFileDestPath := filepath.Join(pkgCacheDestDir, pkg)
-		if err := file.CopyFile(pkgFileSrcPath, pkgFileDestPath, "--preserve=mode", true); err != nil {
-			log.Errorf("Failed to copy package file to iso cache-repo: %v", err)
-			return fmt.Errorf("failed to copy package file to iso cache-repo: %w", err)
-		}
-	}
-
-	pkgCacheChrootDir, err := isoMaker.ChrootEnv.GetChrootEnvPath(pkgCacheDestDir)
-	if err != nil {
-		return fmt.Errorf("failed to get chroot path for iso cache-repo: %w", err)
-	}
-
-	if err := isoMaker.ChrootEnv.UpdateChrootLocalRepoMetadata(pkgCacheChrootDir, template.Target.Arch, true); err != nil {
-		return fmt.Errorf("failed to update local cache repository metadata in iso: %w", err)
-	}
-
-	return nil
-}
-
 func (isoMaker *IsoMaker) createIso(template *config.ImageTemplate, initrdRootfsPath, initrdFilePath, isoFilePath, rawImagePath string) error {
 	var err error
 

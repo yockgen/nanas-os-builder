@@ -44,9 +44,11 @@ systemConfig:
 
     # base
     - ubuntu-minimal
+    - curl
     # bootloader
     - grub-pc-bin
     - grub-efi-amd64-bin
+    - systemd-boot
     # GUI packages
     - xfce4 
     - xfce4-goodies    
@@ -76,6 +78,9 @@ systemConfig:
     - linux-firmware
     - wireless-tools
     - wpasupplicant
+    #cloud init
+    - cloud-init
+    - chrony
     # edit
     - nano
 
@@ -84,6 +89,20 @@ systemConfig:
       final: /etc/systemd/network/dhcp.network
     - local: ../additionalfiles/ubuntu-noble.list
       final: /etc/apt/sources.list.d/ubuntu-noble.list
+    - local: ../additionalfiles/mos-logo.png
+      final: /usr/share/madani/mos-logo.png
+    - local: ../additionalfiles/mos-wallpaper.png
+      final: /usr/share/backgrounds/mos-wallpaper.png
+    - local: ../additionalfiles/mos-wallpaper.png
+      final: /usr/share/backgrounds/warty-final-ubuntu.png
+    - local: ../additionalfiles/xfce4-desktop.xml
+      final: /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml
+    - local: ../additionalfiles/setup-wait-for-network.sh
+      final: /opt/software/setup-wait-for-network.sh
+    - local: ../additionalfiles/setup-ollama.sh
+      final: /opt/software/setup-ollama.sh
+    - local: ../additionalfiles/setup-containers.sh
+      final: /opt/software/setup-containers.sh
     - local: ../additionalfiles/getty@.service
       final: /usr/lib/systemd/system/getty@.service
     - local: ../additionalfiles/serial-getty@.service
@@ -97,6 +116,12 @@ systemConfig:
       final: /usr/local/bin/installer-launcher.sh
 
   hookScripts:
+    - local_post_download_packages: ../hookscripts/post_download.sh
+      target_post_download_packages: /hooks/post_download.sh
+    - local_post_rootfs: ../hookscripts/rebranding.sh
+      target_post_rootfs: /etc/hooks/rebranding.sh
+    - local_post_rootfs: ../hookscripts/cloudinit.sh
+      target_post_rootfs: /etc/hooks/cloudinit.sh
     - local_post_rootfs: ../hookscripts/post_rootfs_initrd.sh
       target_post_rootfs: /etc/hooks/post_rootfs_initrd.sh
 

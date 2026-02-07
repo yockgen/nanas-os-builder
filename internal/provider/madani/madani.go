@@ -13,7 +13,6 @@ import (
 	"github.com/open-edge-platform/os-image-composer/internal/image/rawmaker"
 	"github.com/open-edge-platform/os-image-composer/internal/ospackage/debutils"
 	"github.com/open-edge-platform/os-image-composer/internal/provider"
-	"github.com/open-edge-platform/os-image-composer/internal/utils/display"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/logger"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/shell"
 	"github.com/open-edge-platform/os-image-composer/internal/utils/system"
@@ -357,8 +356,4 @@ func loadRepoConfig(repoUrl string, arch string) ([]debutils.RepoConfig, error) 
 	}
 
 	return repoConfigs, nil
-}
-
-func displayImageArtifacts(imageBuildDir, imageType string) {
-	display.PrintImageDirectorySummary(imageBuildDir, imageType)
 }
