@@ -100,6 +100,10 @@ systemConfig:
       final: /opt/software/setup-ollama.sh
     - local: ../additionalfiles/setup-containers.sh
       final: /opt/software/setup-containers.sh
+    - local: ../additionalfiles/setup-intel-dlstreamer.sh
+      final: /opt/software/setup-intel-dlstreamer.sh
+    - local: ../additionalfiles/setup-cleanup.sh
+      final: /opt/software/setup-cleanup.sh
                
   hookScripts:
     - local_post_download_packages: ../hookscripts/post_download.sh
