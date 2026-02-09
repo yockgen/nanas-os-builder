@@ -53,6 +53,21 @@ else
     echo "✓ Podman already installed"
 fi
 
+# 4.1. Install podman-docker for Docker CLI compatibility
+if ! dpkg -l | grep -q podman-docker; then
+    echo "Installing podman-docker for Docker CLI compatibility..."
+    apt-get install -y podman-docker
+    # Verify docker command is available
+    if command -v docker >/dev/null 2>&1; then
+        echo "✓ podman-docker installed successfully"
+        docker --version
+    else
+        echo "✗ podman-docker installation may have failed"
+    fi
+else
+    echo "✓ podman-docker already installed"
+fi
+
 # 5. Final check for Podman installation
 if command -v podman >/dev/null 2>&1; then
     echo "✓ Podman installed successfully"

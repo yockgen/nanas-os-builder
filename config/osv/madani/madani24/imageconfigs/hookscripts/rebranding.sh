@@ -74,4 +74,10 @@ if [ -f "$TARGET_ROOTFS/etc/bash.bashrc" ]; then
     sed -i '/See "man sudo_root"/d' "$TARGET_ROOTFS/etc/bash.bashrc"
 fi
 
+echo "Step 4: Configuring timezone settings..."
+
+# Set timezone to Asia/Kuala_Lumpur
+ln -sf /usr/share/zoneinfo/Asia/Kuala_Lumpur "$TARGET_ROOTFS/etc/localtime"
+echo "Asia/Kuala_Lumpur" > "$TARGET_ROOTFS/etc/timezone"
+
 echo "Branding complete. Madani OS identity is now locked."
