@@ -49,7 +49,7 @@ runcmd:
     /opt/software/setup-containers.sh && \
     /opt/software/setup-intel-dlstreamer.sh && \
     /opt/software/setup-openclaw.sh
-
+        
     echo "Setup sequence complete."
 EOF
 
