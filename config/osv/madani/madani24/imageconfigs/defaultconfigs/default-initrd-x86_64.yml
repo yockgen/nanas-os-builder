@@ -17,49 +17,119 @@ systemConfig:
     provider: grub # (grub for efi and legacy mode, or systemd-boot for efi mode)
 
   packages:
-    - ca-certificates
-    - vim
-    - sudo
-    - net-tools
-    - openssh-client
-    - openssh-server
-    - procps
-    - less
-    - dbus
-    - policykit-1
-    - dosfstools
+    # disk management
+    - udisks2
+    - util-linux
+    - udev
+    - os-prober
     - efibootmgr
-    - eject
+    - kpartx
+    - ntfs-3g
+    - dosfstools
+    - e2fsprogs
+    - btrfs-progs
+    - xfsprogs
+    - parted
+    # operation
+    - qemu-utils
+    - pv
+    - dmidecode
+    - pciutils
+    - usbutils
+    - systemd
+    - python3
+    - python3-gi  # GTK bindings for Python
+    - gir1.2-gtk-3.0  # GTK 3.0 introspection data
+    - python3-gi-cairo  # Cairo bindings for GTK
+
+    # base
+    - ubuntu-minimal
     - curl
-    - mmdebstrap
-    - wget
-    - cryptsetup
-    - systemd-resolved
-    - cloud-guest-utils
-    - xterm
-    - initramfs-tools
-    - systemd-boot
+    # bootloader
     - grub-pc-bin
     - grub-efi-amd64-bin
-
+    - systemd-boot
+    # GUI packages
+    - xfce4 
+    - xfce4-goodies    
+    - xrdp 
+    - xfce4-session 
+    - dbus-x11 
+    - dbus-user-session
+    - x11-xserver-utils 
+    - xorg 
+    - mesa-utils
+    - ssl-cert
+    - lightdm
+    - lightdm-gtk-greeter
+    - xinit
+    - xterm
+    - dbus
+    - policykit-1
+    - openbox
+    - openssh-server
+    - systemd-resolved
+    - cryptsetup-bin
+    - dracut-core
+    #networking
+    - net-tools
+    - network-manager
+    - network-manager-gnome
+    - linux-firmware
+    - wireless-tools
+    - wpasupplicant
+    #cloud init
+    - cloud-init
+    - chrony
+    # edit
+    - nano
 
   additionalFiles:
     - local: ../additionalfiles/dhcp.network
       final: /etc/systemd/network/dhcp.network
     - local: ../additionalfiles/ubuntu-noble.list
       final: /etc/apt/sources.list.d/ubuntu-noble.list
+    - local: ../additionalfiles/mos-logo.png
+      final: /usr/share/madani/mos-logo.png
+    - local: ../additionalfiles/mos-wallpaper.png
+      final: /usr/share/backgrounds/mos-wallpaper.png
+    - local: ../additionalfiles/mos-wallpaper.png
+      final: /usr/share/backgrounds/warty-final-ubuntu.png
+    - local: ../additionalfiles/xfce4-desktop.xml
+      final: /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml
+    - local: ../additionalfiles/setup-wait-for-network.sh
+      final: /opt/software/setup-wait-for-network.sh
+    - local: ../additionalfiles/setup-ollama.sh
+      final: /opt/software/setup-ollama.sh
+    - local: ../additionalfiles/setup-containers.sh
+      final: /opt/software/setup-containers.sh
     - local: ../additionalfiles/getty@.service
       final: /usr/lib/systemd/system/getty@.service
     - local: ../additionalfiles/serial-getty@.service
       final: /usr/lib/systemd/system/serial-getty@.service
     - local: ../../../../../general/isolinux/attendedinstaller
       final: /root/attendedinstaller
-    - local: ../../../../../../build/live-installer
-      final: /usr/bin/live-installer
+    # Madani OS GUI Installer
+    - local: ../additionalfiles/installer-gui.py
+      final: /usr/local/bin/installer-gui.py
+    - local: ../additionalfiles/installer-launcher.sh
+      final: /usr/local/bin/installer-launcher.sh
+
+  hookScripts:
+    - local_post_download_packages: ../hookscripts/post_download.sh
+      target_post_download_packages: /hooks/post_download.sh
+    - local_post_rootfs: ../hookscripts/rebranding.sh
+      target_post_rootfs: /etc/hooks/rebranding.sh
+    - local_post_rootfs: ../hookscripts/cloudinit.sh
+      target_post_rootfs: /etc/hooks/cloudinit.sh
+    - local_post_rootfs: ../hookscripts/post_rootfs_initrd.sh
+      target_post_rootfs: /etc/hooks/post_rootfs_initrd.sh
 
   users:
     - name: root
       startupScript: "/root/attendedinstaller"
+      password: ""
+      groups: ["sudo"]
 
   kernel:
     name: kernel
