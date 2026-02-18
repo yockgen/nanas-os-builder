@@ -8,6 +8,9 @@ export XAUTH=${XAUTHORITY:-$HOME/.Xauthority}
 # Crucial: Allow local connections to X11
 xhost +local:docker > /dev/null
 
+# Set permissions for video device
+chmod 666 /dev/video0
+
 docker run -it --rm \
     --net=host \
     --name dlstreamer-demo \
