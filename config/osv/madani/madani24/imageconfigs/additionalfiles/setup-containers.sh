@@ -68,6 +68,30 @@ else
     echo "✓ podman-docker already installed"
 fi
 
+# 4.2. Install Docker Compose v2
+if ! command -v docker-compose >/dev/null 2>&1; then
+    echo "Installing Docker Compose v2..."
+    # Get the latest release version of Docker Compose
+    COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+    
+    # Download and install Docker Compose v2
+    curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    
+    # Make it executable
+    chmod +x /usr/local/bin/docker-compose
+    
+    # Verify installation
+    if command -v docker-compose >/dev/null 2>&1; then
+        echo "✓ Docker Compose v2 installed successfully"
+        docker-compose --version
+    else
+        echo "✗ Docker Compose v2 installation may have failed"
+    fi
+else
+    echo "✓ Docker Compose already installed"
+    docker-compose --version
+fi
+
 # 5. Final check for Podman installation
 if command -v podman >/dev/null 2>&1; then
     echo "✓ Podman installed successfully"
