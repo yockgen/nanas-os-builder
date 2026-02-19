@@ -185,6 +185,61 @@ qemu-system-x86_64 \
 
 ---
 
+## Testing with the OS ISO Image
+
+The ISO image is a bootable installation media that can be used to install Madani OS on a physical machine or virtual machine. It provides a live installer environment for setting up the OS on a target disk.
+
+### Building an ISO Image
+
+Build the ISO image using the appropriate template:
+
+```bash
+# Using go run for development
+go run ./cmd/os-image-composer/ build -v --cache-dir ./cache/ image-templates/madani24-x86_64-minimal-iso.yml
+
+# Or using the compiled binary
+sudo -E ./os-image-composer build -v --cache-dir ./cache/ image-templates/madani24-x86_64-minimal-iso.yml
+```
+
+> **Note:** ISO images include `installer-gui.py` as the graphical installer, which is automatically bundled during the build process.
+
+### Deploying ISO Image with QEMU
+
+The ISO image can be used to install Madani OS to a virtual disk. This example creates a 20GB installation target:
+
+```bash
+# Create a virtual disk for installation
+qemu-img create -f qcow2 os-install-disk.qcow2 20G
+
+# Boot from ISO and install to the virtual disk
+sudo qemu-system-x86_64 \
+  -m 8192 \
+  -enable-kvm \
+  -cpu host \
+  -bios /usr/share/OVMF/OVMF_CODE.fd \
+  -device virtio-scsi-pci \
+  -drive if=none,id=drive0,file=minimal-os-image-madani-24.04.iso,format=raw \
+  -device scsi-hd,drive=drive0 \
+  -drive if=none,id=drive1,file=os-install-disk.qcow2,format=qcow2 \
+  -device scsi-hd,drive=drive1 \
+  -display gtk \
+  -serial mon:stdio
+```
+
+**Parameters explained:**
+- `-m 8192`: Allocates 8GB of RAM (adjust based on your system)
+- `-enable-kvm`: Enables hardware virtualization for better performance
+- `-cpu host`: Uses host CPU features for optimal performance
+- `-bios /usr/share/OVMF/OVMF_CODE.fd`: Uses UEFI firmware
+- `drive0`: The ISO image (boot media)
+- `drive1`: The virtual disk where the OS will be installed
+- `-display gtk`: Shows a graphical window
+- `-serial mon:stdio`: Provides console access via terminal
+
+> **Note:** After installation completes, you can boot from the installed disk by removing the ISO drive or changing the boot order.
+
+---
+
 ## Advanced Topics
 
 ### Build Options
@@ -196,9 +251,6 @@ For development and testing purposes:
 ```bash
 # Build the tool
 go build -buildmode=pie -ldflags "-s -w" ./cmd/os-image-composer
-
-# Build the live-installer (Required for ISO image)
-go build -buildmode=pie -o ./build/live-installer -ldflags "-s -w" ./cmd/live-installer
 
 # Or run it directly
 go run ./cmd/os-image-composer --help
@@ -221,17 +273,6 @@ go build -buildmode=pie \
     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.BuildDate=$BUILD_DATE' \
     -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.CommitSHA=$COMMIT'" \
   ./cmd/os-image-composer
-
-# Required for ISO image
-go build -buildmode=pie \
-  -o ./build/live-installer \
-  -ldflags "-s -w \
-    -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Version=$VERSION' \
-    -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Toolname=Image-Composer' \
-    -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.Organization=Open Edge Platform' \
-    -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.BuildDate=$BUILD_DATE' \
-    -X 'github.com/open-edge-platform/os-image-composer/internal/config/version.CommitSHA=$COMMIT'" \
-  ./cmd/live-installer
 ```
 
 #### Production Build (Earthly Framework)
