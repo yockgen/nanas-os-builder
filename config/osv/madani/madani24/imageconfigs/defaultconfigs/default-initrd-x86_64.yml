@@ -103,6 +103,16 @@ systemConfig:
       final: /opt/software/setup-ollama.sh
     - local: ../additionalfiles/setup-containers.sh
       final: /opt/software/setup-containers.sh
+    - local: ../additionalfiles/setup-intel-dlstreamer.sh
+      final: /opt/software/setup-intel-dlstreamer.sh
+    - local: ../additionalfiles/setup-cleanup.sh
+      final: /opt/software/setup-cleanup.sh
+    - local: ../additionalfiles/setup-openclaw.sh
+      final: /opt/software/setup-openclaw.sh
+    - local: ../additionalfiles/run-dlstreamer-webcam.sh
+      final: /opt/software/run-dlstreamer-webcam.sh
+    - local: ../additionalfiles/run-openclaw-configuration.sh
+      final: /opt/software/run-openclaw-configuration.sh
     - local: ../additionalfiles/getty@.service
       final: /usr/lib/systemd/system/getty@.service
     - local: ../additionalfiles/serial-getty@.service
