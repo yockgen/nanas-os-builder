@@ -1,4 +1,5 @@
 # Madani OS Builder
+***Disclaimer: Madani OS is an independent, community-led open-source project. It is not affiliated with, endorsed by, or sponsored by the Government of Malaysia or the Malaysia MADANI policy framework.***
 
 > **Note:** This is a fork of upstream/project. It contains custom changes for Madani OS use and is not intended for upstream contribution.
 
