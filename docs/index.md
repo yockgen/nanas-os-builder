@@ -423,7 +423,7 @@ Array of system configurations that define what goes into the image:
 | emt | emt3 | 3.0 | EMT3.0 |
 | wind-river-elxr | elxr12 | 12 | eLxr12 |
 | ubuntu | ubuntu24 | | ubuntu24 |
-| madani | madani24 | | madani24 |
+| nanas | nanas24 | | nanas24 |
 
 #### Package Examples
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Madani OS Installer - QCOW2 Image Deployment Tool
+Nanas OS Installer - QCOW2 Image Deployment Tool
 A graphical installer with Calamares-style UI
 """
 
@@ -15,7 +15,7 @@ import re
 
 class InstallerWindow(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Madani OS Installer")
+        super().__init__(title="Nanas OS Installer")
         
         # Setup logging to desktop
         self.desktop_dir = "/root/Desktop"
@@ -232,7 +232,7 @@ class InstallerWindow(Gtk.Window):
         )
         
         # Logo/Title
-        logo_path = "/usr/share/madani/mos-logo.png"
+        logo_path = "/usr/share/nanas/nos-logo.png"
         if os.path.exists(logo_path):
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 240, 240, True)
             logo = Gtk.Image.new_from_pixbuf(pixbuf)
@@ -243,7 +243,7 @@ class InstallerWindow(Gtk.Window):
         sidebar.pack_start(logo, False, False, 0)
         
         title = Gtk.Label()
-        title.set_markup("<span size='large' weight='bold'>Madani OS</span>")
+        title.set_markup("<span size='large' weight='bold'>Nanas OS</span>")
         title.set_margin_bottom(30)
         sidebar.pack_start(title, False, False, 0)
         
@@ -338,8 +338,8 @@ class InstallerWindow(Gtk.Window):
         box.set_halign(Gtk.Align.CENTER)
         box.set_valign(Gtk.Align.CENTER)
         
-        # Load Madani OS logo
-        logo_path = "/usr/share/madani/mos-logo.png"
+        # Load Nanas OS logo
+        logo_path = "/usr/share/nanas/nos-logo.png"
         if os.path.exists(logo_path):
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 512, 512, True)
             icon = Gtk.Image.new_from_pixbuf(pixbuf)
@@ -349,12 +349,12 @@ class InstallerWindow(Gtk.Window):
         box.pack_start(icon, False, False, 0)
         
         title = Gtk.Label()
-        title.set_markup("<span size='xx-large' weight='bold'>Welcome to Madani OS</span>")
+        title.set_markup("<span size='xx-large' weight='bold'>Welcome to Nanas OS</span>")
         box.pack_start(title, False, False, 0)
         
         desc = Gtk.Label()
         desc.set_markup(
-            "You can try Madani OS without making any changes to your computer,\n"
+            "You can try Nanas OS without making any changes to your computer,\n"
             "or install it permanently."
         )
         desc.set_line_wrap(True)
@@ -376,7 +376,7 @@ class InstallerWindow(Gtk.Window):
         try_icon.set_pixel_size(64)
         try_box.pack_start(try_icon, False, False, 0)
         try_label = Gtk.Label()
-        try_label.set_markup("<span size='large' weight='bold'>Try Madani OS</span>")
+        try_label.set_markup("<span size='large' weight='bold'>Try Nanas OS</span>")
         try_box.pack_start(try_label, False, False, 0)
         try_desc = Gtk.Label()
         try_desc.set_markup("<small>Boot into live environment\nwithout installation</small>")
@@ -397,10 +397,10 @@ class InstallerWindow(Gtk.Window):
         install_icon.set_pixel_size(64)
         install_box.pack_start(install_icon, False, False, 0)
         install_label = Gtk.Label()
-        install_label.set_markup("<span size='large' weight='bold'>Install Madani OS</span>")
+        install_label.set_markup("<span size='large' weight='bold'>Install Nanas OS</span>")
         install_box.pack_start(install_label, False, False, 0)
         install_desc = Gtk.Label()
-        install_desc.set_markup("<small>Install Madani OS\npermanently to your disk</small>")
+        install_desc.set_markup("<small>Install Nanas OS\npermanently to your disk</small>")
         install_desc.set_justify(Gtk.Justification.CENTER)
         install_box.pack_start(install_desc, False, False, 0)
         install_button.add(install_box)
@@ -431,8 +431,8 @@ class InstallerWindow(Gtk.Window):
         box.set_halign(Gtk.Align.CENTER)
         box.set_valign(Gtk.Align.CENTER)
         
-        # Load Madani OS logo
-        logo_path = "/usr/share/madani/mos-logo.png"
+        # Load Nanas OS logo
+        logo_path = "/usr/share/nanas/nos-logo.png"
         if os.path.exists(logo_path):
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 512, 512, True)
             icon = Gtk.Image.new_from_pixbuf(pixbuf)
@@ -442,7 +442,7 @@ class InstallerWindow(Gtk.Window):
         box.pack_start(icon, False, False, 0)
         
         title = Gtk.Label()
-        title.set_markup("<span size='xx-large' weight='bold'>Welcome to Madani OS Installer</span>")
+        title.set_markup("<span size='xx-large' weight='bold'>Welcome to Nanas OS Installer</span>")
         box.pack_start(title, False, False, 0)
         
         desc = Gtk.Label()
@@ -663,7 +663,7 @@ class InstallerWindow(Gtk.Window):
         box.set_valign(Gtk.Align.CENTER)
         
         # Success icon or logo
-        logo_path = "/usr/share/madani/mos-logo.png"
+        logo_path = "/usr/share/nanas/nos-logo.png"
         if os.path.exists(logo_path):
             pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(logo_path, 512, 512, True)
             icon = Gtk.Image.new_from_pixbuf(pixbuf)
@@ -852,7 +852,7 @@ class InstallerWindow(Gtk.Window):
     
     def configure_installed_system(self):
         """Configure username, hostname, and password on the installed system"""
-        mount_point = "/mnt/madani-install"
+        mount_point = "/mnt/nanas-install"
         
         try:
             # Create mount point
@@ -987,7 +987,7 @@ ff02::2		ip6-allrouters
 
 if __name__ == "__main__":
     # Check if installer has already been run this session
-    flag_file = "/tmp/.madani-installer-run"
+    flag_file = "/tmp/.nanas-installer-run"
     
     if os.path.exists(flag_file):
         print("[INSTALLER] Installer already launched this session. Exiting.")

@@ -1,14 +1,14 @@
-# Madani OS Builder
+# Nanas OS Builder
 
-> **Note:** This is a fork of upstream/project. It contains custom changes for Madani OS use and is not intended for upstream contribution.
+> **Note:** This is a fork of upstream/project. It contains custom changes for Nanas OS use and is not intended for upstream contribution.
 
 ---
 
 ## Overview
 
-Madani OS Builder is a specialized command-line tool designed to build lightweight Linux distributions optimized for low-end machines with pre-built AI stack capabilities. Using a simple toolchain, it creates mutable or immutable Madani OS images from pre-built packages sourced from various OS distribution repositories.
+Nanas OS Builder is a specialized command-line tool designed to build lightweight Linux distributions optimized for low-end machines with pre-built AI stack capabilities. Using a simple toolchain, it creates mutable or immutable Nanas OS images from pre-built packages sourced from various OS distribution repositories.
 
-Developed in Go, the tool specializes in building custom Madani OS images optimized for efficient AI workload execution on resource-constrained hardware. The tool's versatile architecture also supports building images for other Linux distributions including Ubuntu, Wind River eLxr, Azure Linux, and Intel EMT.
+Developed in Go, the tool specializes in building custom Nanas OS images optimized for efficient AI workload execution on resource-constrained hardware. The tool's versatile architecture also supports building images for other Linux distributions including Ubuntu, Wind River eLxr, Azure Linux, and Intel EMT.
 
 ---
 
@@ -37,11 +37,11 @@ Developed in Go, the tool specializes in building custom Madani OS images optimi
 
 **Recommended Operating System:** Ubuntu 24.04
 
-> **Note:** Madani Team has validated and recommends using Ubuntu OS version 24.04. Other Linux distributions have not been validated. Future releases will include a containerized version for enhanced portability.
+> **Note:** Nanas Team has validated and recommends using Ubuntu OS version 24.04. Other Linux distributions have not been validated. Future releases will include a containerized version for enhanced portability.
 
 ### Windows WSL Setup (Automated)
 
-**For Windows users who want to run Madani OS Builder in WSL:**
+**For Windows users who want to run Nanas OS Builder in WSL:**
 
 Use the provided automated setup script to configure Ubuntu 24.04 in WSL with all required dependencies:
 
@@ -54,12 +54,12 @@ setup-wsl.bat
 - Installs Ubuntu 24.04 in WSL (if not already installed)
 - Sets up Go programming language (v1.25.5)
 - Creates `/data` directory for the project
-- Clones the repository to `/data/madani-os-builder`
+- Clones the repository to `/data/nanas-os-builder`
 - Configures proper permissions and PATH variables
 
 **After running the script:**
 1. The script will automatically launch WSL
-2. Navigate to the project directory: `cd /data/madani-os-builder`
+2. Navigate to the project directory: `cd /data/nanas-os-builder`
 3. Continue with [step 3 of the Quick Start Guide](#3-build-the-tool)
 
 > **Note:** If prompted to create a username/password during Ubuntu installation, complete the setup and return to the batch script window.
@@ -71,8 +71,8 @@ setup-wsl.bat
 ### 1. Download the Tool
 
 ```bash
-git clone https://github.com/yockgen/madani-os-builder/
-cd madani-os-builder
+git clone https://github.com/yockgen/nanas-os-builder/
+cd nanas-os-builder
 git checkout $(git describe --tags --abbrev=0)
 ```
 
@@ -86,19 +86,19 @@ Install Go programming language version 1.22.12 or later. See the [Go installati
 sudo go build -buildmode=pie -ldflags "-s -w" ./cmd/os-image-composer
 ```
 
-### 4. Build a Madani OS Image
+### 4. Build a Nanas OS Image
 
 ```bash
-sudo -E ./os-image-composer build --cache-dir ./cache/ -v image-templates/madani24-x86_64-minimal-raw.yml 2>&1 | tee yockgen-madani.txt
+sudo -E ./os-image-composer build --cache-dir ./cache/ -v image-templates/nanas24-x86_64-minimal-raw.yml 2>&1 | tee yockgen-nanas.txt
 ```
 
 ### 5. Locate the Output Image
 
 ```bash
-ls ./workspace/madani-madani24-x86_64/imagebuild/minimal/minimal-os-image-madani-24.04.raw.gz
+ls ./workspace/nanas-nanas24-x86_64/imagebuild/minimal/minimal-os-image-nanas-24.04.raw.gz
 ```
 
-> **Note:** The `minimal-os-image-madani-24.04.raw.gz` file is a compressed raw disk image containing the complete Madani OS.
+> **Note:** The `minimal-os-image-nanas-24.04.raw.gz` file is a compressed raw disk image containing the complete Nanas OS.
 
 ### 6. Cleanup (Optional)
 
@@ -124,7 +124,7 @@ The raw image file can be deployed on various platforms:
 #### Extract the Compressed File
 
 ```bash
-gzip -dc ./workspace/madani-madani24-x86_64/imagebuild/minimal/minimal-os-image-madani-24.04.raw.gz > /data/raw/test-madani-final.raw
+gzip -dc ./workspace/nanas-nanas24-x86_64/imagebuild/minimal/minimal-os-image-nanas-24.04.raw.gz > /data/raw/test-nanas-final.raw
 ```
 
 #### Run with QEMU (No GUI)
@@ -137,7 +137,7 @@ sudo qemu-system-x86_64 \
   -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
   -drive if=pflash,format=raw,file=/usr/share/OVMF/OVMF_VARS_4M.fd \
   -device virtio-scsi-pci \
-  -drive if=none,id=drive0,file=test-madani-final.raw,format=raw \
+  -drive if=none,id=drive0,file=test-nanas-final.raw,format=raw \
   -device scsi-hd,drive=drive0 \
   -netdev user,id=net0,hostfwd=tcp::2223-:22,hostfwd=tcp::8081-:80 \
   -device virtio-net-pci,netdev=net0 \
@@ -157,7 +157,7 @@ sudo chmod 666 /dev/kvm
 
 # Prepare VM files
 cd /data/raw
-chmod 777 test-madani-final.raw
+chmod 777 test-nanas-final.raw
 cp /usr/share/OVMF/OVMF_VARS_4M.fd ./my_vars.fd
 chmod 644 ./my_vars.fd
 
@@ -171,7 +171,7 @@ qemu-system-x86_64 \
   -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
   -drive if=pflash,format=raw,file=./my_vars.fd \
   -device virtio-scsi-pci \
-  -drive if=none,id=drive0,file=test-madani-final.raw,format=raw,cache=none,aio=native \
+  -drive if=none,id=drive0,file=test-nanas-final.raw,format=raw,cache=none,aio=native \
   -device scsi-hd,drive=drive0 \
   -netdev user,id=net0,hostfwd=tcp::2223-:22,hostfwd=tcp::8081-:80 \
   -device virtio-net-pci,netdev=net0 \
@@ -653,7 +653,7 @@ Array of system configurations that define what goes into the image:
 | emt | emt3 | 3.0 | EMT3.0 |
 | wind-river-elxr | elxr12 | 12 | eLxr12 |
 | ubuntu | ubuntu24 | | ubuntu24 |
-| madani | madani24 | | madani24 |
+| nanas | nanas24 | | nanas24 |
 
 ### Common Packages
 

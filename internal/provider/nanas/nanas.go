@@ -1,4 +1,4 @@
-package madani
+package nanas
 
 import (
 	"fmt"
@@ -21,13 +21,13 @@ import (
 // DEB: https://deb.debian.org/debian/dists/bookworm/main/binary-amd64/Packages.gz
 // DEB Download Path: https://deb.debian.org/debian/pool/main/0/0ad/0ad_0.0.26-3_amd64.deb
 const (
-	OsName = "madani"
+	OsName = "nanas"
 )
 
 var log = logger.Logger()
 
-// madani implements provider.Provider
-type madani struct {
+// nanas implements provider.Provider
+type nanas struct {
 	repoCfgs  []debutils.RepoConfig
 	chrootEnv chroot.ChrootEnvInterface
 }
@@ -37,7 +37,7 @@ func Register(targetOs, targetDist, targetArch string) error {
 	if err != nil {
 		return fmt.Errorf("failed to inject chroot dependency: %w", err)
 	}
-	provider.Register(&madani{
+	provider.Register(&nanas{
 		chrootEnv: chrootEnv,
 	}, targetDist, targetArch)
 
@@ -45,12 +45,12 @@ func Register(targetOs, targetDist, targetArch string) error {
 }
 
 // Name returns the unique name of the provider
-func (p *madani) Name(dist, arch string) string {
+func (p *nanas) Name(dist, arch string) string {
 	return system.GetProviderId(OsName, dist, arch)
 }
 
 // Init will initialize the provider, fetching repo configuration
-func (p *madani) Init(dist, arch string) error {
+func (p *nanas) Init(dist, arch string) error {
 
 	//todo: need to correct of how to get the arch once finalized
 	if arch == "x86_64" {
@@ -64,7 +64,7 @@ func (p *madani) Init(dist, arch string) error {
 	}
 	p.repoCfgs = cfgs
 
-	log.Infof("Initialized madani provider with %d repositories", len(cfgs))
+	log.Infof("Initialized nanas provider with %d repositories", len(cfgs))
 	for i, cfg := range cfgs {
 		log.Infof("Repository %d: name=%s, package list url=%s, package download url=%s",
 			i+1, cfg.Name, cfg.PkgList, cfg.PkgPrefix)
@@ -72,7 +72,7 @@ func (p *madani) Init(dist, arch string) error {
 	return nil
 }
 
-func (p *madani) PreProcess(template *config.ImageTemplate) error {
+func (p *nanas) PreProcess(template *config.ImageTemplate) error {
 	if err := p.installHostDependency(); err != nil {
 		return fmt.Errorf("failed to install host dependencies: %w", err)
 	}
@@ -88,7 +88,7 @@ func (p *madani) PreProcess(template *config.ImageTemplate) error {
 	return nil
 }
 
-func (p *madani) BuildImage(template *config.ImageTemplate) error {
+func (p *nanas) BuildImage(template *config.ImageTemplate) error {
 	if template == nil {
 		return fmt.Errorf("template cannot be nil")
 	}
@@ -108,7 +108,7 @@ func (p *madani) BuildImage(template *config.ImageTemplate) error {
 	}
 }
 
-func (p *madani) buildRawImage(template *config.ImageTemplate) error {
+func (p *nanas) buildRawImage(template *config.ImageTemplate) error {
 	// Create RawMaker with template (dependency injection)
 	rawMaker, err := rawmaker.NewRawMaker(p.chrootEnv, template)
 	if err != nil {
@@ -123,7 +123,7 @@ func (p *madani) buildRawImage(template *config.ImageTemplate) error {
 	return rawMaker.BuildRawImage()
 }
 
-func (p *madani) buildInitrdImage(template *config.ImageTemplate) error {
+func (p *nanas) buildInitrdImage(template *config.ImageTemplate) error {
 	// Create InitrdMaker with template (dependency injection)
 	initrdMaker, err := initrdmaker.NewInitrdMaker(p.chrootEnv, template)
 	if err != nil {
@@ -144,7 +144,7 @@ func (p *madani) buildInitrdImage(template *config.ImageTemplate) error {
 	return nil
 }
 
-func (p *madani) buildIsoImage(template *config.ImageTemplate) error {
+func (p *nanas) buildIsoImage(template *config.ImageTemplate) error {
 	// Step 1: Check if raw image exists, if not build it
 	log.Infof("Checking for raw image before building ISO...")
 
@@ -183,7 +183,7 @@ func (p *madani) buildIsoImage(template *config.ImageTemplate) error {
 	return isoMaker.BuildIsoImage()
 }
 
-func (p *madani) checkRawImageExists(template *config.ImageTemplate) (bool, error) {
+func (p *nanas) checkRawImageExists(template *config.ImageTemplate) (bool, error) {
 	globalWorkDir, err := config.WorkDir()
 	if err != nil {
 		return false, fmt.Errorf("failed to get work directory: %w", err)
@@ -222,7 +222,7 @@ func (p *madani) checkRawImageExists(template *config.ImageTemplate) (bool, erro
 	return false, nil
 }
 
-func (p *madani) PostProcess(template *config.ImageTemplate, error error) error {
+func (p *nanas) PostProcess(template *config.ImageTemplate, error error) error {
 	if err := p.chrootEnv.CleanupChrootEnv(template.Target.OS,
 		template.Target.Dist, template.Target.Arch); err != nil {
 		return fmt.Errorf("failed to cleanup chroot environment: %w", err)
@@ -230,7 +230,7 @@ func (p *madani) PostProcess(template *config.ImageTemplate, error error) error 
 	return nil
 }
 
-func (p *madani) installHostDependency() error {
+func (p *nanas) installHostDependency() error {
 	var dependencyInfo = map[string]string{
 		"mmdebstrap":       "mmdebstrap",       // For the chroot env build
 		"mkfs.fat":         "dosfstools",       // For the FAT32 boot partition creation
@@ -267,7 +267,7 @@ func (p *madani) installHostDependency() error {
 	return nil
 }
 
-func (p *madani) downloadImagePkgs(template *config.ImageTemplate) error {
+func (p *nanas) downloadImagePkgs(template *config.ImageTemplate) error {
 	if err := p.chrootEnv.UpdateSystemPkgs(template); err != nil {
 		return fmt.Errorf("failed to update system packages: %w", err)
 	}
@@ -318,13 +318,13 @@ func loadRepoConfig(repoUrl string, arch string) ([]debutils.RepoConfig, error) 
 	var repoConfigs []debutils.RepoConfig
 
 	// Load provider repo config using the centralized config function
-	providerConfigs, err := config.LoadProviderRepoConfig(OsName, "madani24")
+	providerConfigs, err := config.LoadProviderRepoConfig(OsName, "nanas24")
 	if err != nil {
 		return repoConfigs, fmt.Errorf("failed to load provider repo config: %w", err)
 	}
 
 	repoList := make([]debutils.Repository, len(providerConfigs))
-	repoGroup := "madani"
+	repoGroup := "nanas"
 
 	// Convert each ProviderRepoConfig to debutils.RepoConfig
 	for i, providerConfig := range providerConfigs {

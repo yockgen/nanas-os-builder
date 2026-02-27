@@ -1,10 +1,10 @@
 image:
-  name: minimal-os-image-madani
+  name: minimal-os-image-nanas
   version: "24.04"
 
 target:
-  os: madani
-  dist: madani24
+  os: nanas
+  dist: nanas24
   arch: x86_64
   imageType: img # Image type, valid value: [raw, iso].
 
@@ -90,7 +90,7 @@ systemConfig:
     - local: ../additionalfiles/ubuntu-noble.list
       final: /etc/apt/sources.list.d/ubuntu-noble.list
     - local: ../additionalfiles/mos-logo.png
-      final: /usr/share/madani/mos-logo.png
+      final: /usr/share/nanas/nos-logo.png
     - local: ../additionalfiles/mos-wallpaper.png
       final: /usr/share/backgrounds/mos-wallpaper.png
     - local: ../additionalfiles/mos-wallpaper.png
@@ -109,7 +109,7 @@ systemConfig:
       final: /usr/lib/systemd/system/serial-getty@.service
     - local: ../../../../../general/isolinux/attendedinstaller
       final: /root/attendedinstaller
-    # Madani OS GUI Installer
+    # Nanas OS GUI Installer
     - local: ../additionalfiles/installer-gui.py
       final: /usr/local/bin/installer-gui.py
     - local: ../additionalfiles/installer-launcher.sh

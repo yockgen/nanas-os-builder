@@ -87,7 +87,7 @@ mkdir -p "$TARGET_ROOTFS/etc/xdg/autostart"
 cat <<'EOF' > "$TARGET_ROOTFS/etc/xdg/autostart/attendedinstaller.desktop"
 [Desktop Entry]
 Type=Application
-Name=Madani OS Installer
+Name=Nanas OS Installer
 Comment=Launch system installer
 Exec=/root/attendedinstaller
 Icon=system-software-install

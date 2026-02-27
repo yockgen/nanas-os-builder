@@ -17,41 +17,41 @@ chroot "$TARGET_ROOTFS" dpkg-divert --add --rename --divert /etc/os-release.ubun
 chroot "$TARGET_ROOTFS" dpkg-divert --add --rename --divert /etc/lsb-release.ubuntu /etc/lsb-release
 chroot "$TARGET_ROOTFS" dpkg-divert --add --rename --divert /etc/legal.ubuntu /etc/legal
 
-echo "Step 2: Applying Madani OS Identity files..."
+echo "Step 2: Applying Nanas OS Identity files..."
 
 # Overwrite os-release
 cat <<EOF > "$TARGET_ROOTFS/etc/os-release"
-NAME="Madani OS"
+NAME="Nanas OS"
 VERSION="0.1 (Alpha)"
-ID=madanios
+ID=nanasos
 ID_LIKE="ubuntu debian"
-PRETTY_NAME="Madani OS 0.1"
+PRETTY_NAME="Nanas OS 0.1"
 VERSION_ID="0.1"
-HOME_URL="https://madanios.com"
-BUG_REPORT_URL="https://madanios.com/support"
+HOME_URL="https://nanasos.com"
+BUG_REPORT_URL="https://nanasos.com/support"
 EOF
 
 # Overwrite lsb-release
 cat <<EOF > "$TARGET_ROOTFS/etc/lsb-release"
-DISTRIB_ID=madanios
+DISTRIB_ID=nanasos
 DISTRIB_RELEASE=0.1
 DISTRIB_CODENAME=noble
-DISTRIB_DESCRIPTION="Madani OS 0.1 experimental"
+DISTRIB_DESCRIPTION="Nanas OS 0.1 experimental"
 EOF
 
 # Overwrite legal (Removes the Ubuntu-specific warranty text)
 cat <<EOF > "$TARGET_ROOTFS/etc/legal"
-The programs included with the Madani OS system are free software;
+The programs included with the Nanas OS system are free software;
 the exact distribution terms for each program are described in the
 individual files in /usr/share/doc/*/copyright.
 
-Madani OS comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+Nanas OS comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
 applicable law.
 EOF
 
 # Pre-login text (The banner shown at the TTY login)
-echo "Welcome to Madani OS 0.1 experimental" > "$TARGET_ROOTFS/etc/issue"
-echo "Welcome to Madani OS 0.1 experimental" > "$TARGET_ROOTFS/etc/issue.net"
+echo "Welcome to Nanas OS 0.1 experimental" > "$TARGET_ROOTFS/etc/issue"
+echo "Welcome to Nanas OS 0.1 experimental" > "$TARGET_ROOTFS/etc/issue.net"
 
 echo "Step 3: Cleaning up Ubuntu MOTD and Sudo hints..."
 
@@ -61,12 +61,12 @@ rm -f "$TARGET_ROOTFS/etc/update-motd.d/50-motd-news"
 rm -f "$TARGET_ROOTFS/etc/update-motd.d/80-livepatch"
 rm -f "$TARGET_ROOTFS/etc/update-motd.d/91-release-upgrade"
 
-# Create a clean Madani banner that appears after login
-cat <<EOF > "$TARGET_ROOTFS/etc/update-motd.d/00-madani-banner"
+# Create a clean Nanas banner that appears after login
+cat <<EOF > "$TARGET_ROOTFS/etc/update-motd.d/00-nanas-banner"
 #!/bin/sh
-echo "Welcome to Madani OS 0.1 experimental (\$(uname -rsv))"
+echo "Welcome to Nanas OS 0.1 experimental (\$(uname -rsv))"
 EOF
-chmod +x "$TARGET_ROOTFS/etc/update-motd.d/00-madani-banner"
+chmod +x "$TARGET_ROOTFS/etc/update-motd.d/00-nanas-banner"
 
 # Remove the specific Ubuntu sudo helper hint from the system bash config
 if [ -f "$TARGET_ROOTFS/etc/bash.bashrc" ]; then
@@ -80,4 +80,4 @@ echo "Step 4: Configuring timezone settings..."
 ln -sf /usr/share/zoneinfo/Asia/Kuala_Lumpur "$TARGET_ROOTFS/etc/localtime"
 echo "Asia/Kuala_Lumpur" > "$TARGET_ROOTFS/etc/timezone"
 
-echo "Branding complete. Madani OS identity is now locked."
+echo "Branding complete. Nanas OS identity is now locked."
