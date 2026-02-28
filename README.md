@@ -1,5 +1,5 @@
-# Madani OS Builder
-***Disclaimer: Madani OS is an independent, community-led open-source project. It is not affiliated with, endorsed by, or sponsored by the Government of Malaysia or the Malaysia MADANI policy framework.***
+# Nanas OS Builder
+***Disclaimer: Nanas OS is an independent, community-led open-source project. It is not affiliated with, endorsed by, or sponsored by the Government of Malaysia or the Malaysia MADANI policy framework.***
 
 > **Note:** This is a fork of upstream/project. It contains custom changes for Nanas OS use and is not intended for upstream contribution.
 
@@ -188,7 +188,7 @@ qemu-system-x86_64 \
 
 ## Testing with the OS ISO Image
 
-The ISO image is a bootable installation media that can be used to install Madani OS on a physical machine or virtual machine. It provides a live installer environment for setting up the OS on a target disk.
+The ISO image is a bootable installation media that can be used to install Nanas OS on a physical machine or virtual machine. It provides a live installer environment for setting up the OS on a target disk.
 
 ### Building an ISO Image
 
@@ -196,17 +196,17 @@ Build the ISO image using the appropriate template:
 
 ```bash
 # Using go run for development
-go run ./cmd/os-image-composer/ build -v --cache-dir ./cache/ image-templates/madani24-x86_64-minimal-iso.yml
+go run ./cmd/os-image-composer/ build -v --cache-dir ./cache/ image-templates/nanas24-x86_64-minimal-iso.yml
 
 # Or using the compiled binary
-sudo -E ./os-image-composer build -v --cache-dir ./cache/ image-templates/madani24-x86_64-minimal-iso.yml
+sudo -E ./os-image-composer build -v --cache-dir ./cache/ image-templates/nanas24-x86_64-minimal-iso.yml
 ```
 
 > **Note:** ISO images include `installer-gui.py` as the graphical installer, which is automatically bundled during the build process.
 
 ### Deploying ISO Image with QEMU
 
-The ISO image can be used to install Madani OS to a virtual disk. This example creates a 20GB installation target:
+The ISO image can be used to install Nanas OS to a virtual disk. This example creates a 20GB installation target:
 
 ```bash
 # Create a virtual disk for installation
@@ -219,7 +219,7 @@ sudo qemu-system-x86_64 \
   -cpu host \
   -bios /usr/share/OVMF/OVMF_CODE.fd \
   -device virtio-scsi-pci \
-  -drive if=none,id=drive0,file=minimal-os-image-madani-24.04.iso,format=raw \
+  -drive if=none,id=drive0,file=minimal-os-image-nanas-24.04.iso,format=raw \
   -device scsi-hd,drive=drive0 \
   -drive if=none,id=drive1,file=os-install-disk.qcow2,format=qcow2 \
   -device scsi-hd,drive=drive1 \
