@@ -541,15 +541,15 @@ func TestNanasProviderInstallHostDependency(t *testing.T) {
 func TestNanasProviderInstallHostDependencyCommands(t *testing.T) {
 	// Get the dependency map by examining the installHostDependency method
 	expectedDeps := map[string]string{
-		"mmdebstrap":     "mmdebstrap",
-		"mkfs.fat":       "dosfstools",
-		"mformat":        "mtools",
-		"xorriso":        "xorriso",
-		"qemu-img":       "qemu-utils",
-		"ukify":          "systemd-ukify",
-		"grub-mkimage":   "grub-common",
-		"veritysetup":    "cryptsetup",
-		"sbsign":         "sbsigntool",
+		"mmdebstrap":    "mmdebstrap",
+		"mkfs.fat":      "dosfstools",
+		"mformat":       "mtools",
+		"xorriso":       "xorriso",
+		"qemu-img":      "qemu-utils",
+		"ukify":         "systemd-ukify",
+		"grub-mkimage":  "grub-common",
+		"veritysetup":   "cryptsetup",
+		"sbsign":        "sbsigntool",
 		"nanas-keyring": "nanas-keyring",
 	}
 
