@@ -52,7 +52,7 @@ if [ $count -ge $timeout ]; then
     echo "Warning: X session not ready after ${timeout}s, attempting to launch anyway"
 fi
 
-# Launch Madani OS GUI installer with logging
+# Launch Nanas OS GUI installer with logging
 /usr/local/bin/installer-launcher.sh
 
 # Drop to shell after installer exits
