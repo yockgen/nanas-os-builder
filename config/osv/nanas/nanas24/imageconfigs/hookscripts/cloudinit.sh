@@ -39,6 +39,7 @@ runcmd:
     chmod +x /opt/software/setup-intel-dlstreamer.sh
     chmod +x /opt/software/setup-cleanup.sh
     chmod +x /opt/software/run-dlstreamer-webcam.sh
+    chmod +x /opt/software/run-dlstreamer-carpark.sh
     chmod +x /opt/software/setup-openclaw.sh
     chmod +x /opt/software/run-openclaw-configuration.sh
     

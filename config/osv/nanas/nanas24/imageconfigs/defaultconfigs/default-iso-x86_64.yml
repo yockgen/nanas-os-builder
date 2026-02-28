@@ -108,6 +108,8 @@ systemConfig:
       final: /opt/software/setup-openclaw.sh
     - local: ../additionalfiles/run-dlstreamer-webcam.sh
       final: /opt/software/run-dlstreamer-webcam.sh
+    - local: ../additionalfiles/run-dlstreamer-carpark.sh
+      final: /opt/software/run-dlstreamer-carpark.sh
     - local: ../additionalfiles/run-openclaw-configuration.sh
       final: /opt/software/run-openclaw-configuration.sh
                
