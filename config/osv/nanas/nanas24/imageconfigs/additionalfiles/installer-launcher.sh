@@ -6,7 +6,7 @@ LOG_FILE="/tmp/installer.log"
 # Redirect all output to log file
 exec > "$LOG_FILE" 2>&1
 
-echo "=== Madani OS Installer Launcher ==="
+echo "=== Nanas OS Installer Launcher ==="
 echo "Started at: $(date)"
 
 # Wait for /cdrom to be mounted (up to 60 seconds)

@@ -688,7 +688,7 @@ func TestAllSupportedProviders(t *testing.T) {
 		{"emt", "emt3", "EMT3.0", "3.0"},
 		{"wind-river-elxr", "elxr12", "eLxr12", "12"},
 		{"ubuntu", "ubuntu24", "ubuntu24", ""},
-		{"madani", "madani24", "madani24", ""},
+		{"nanas", "nanas24", "nanas24", ""},
 	}
 
 	for _, tc := range testCases {
@@ -729,7 +729,7 @@ func TestUnsupportedProviders(t *testing.T) {
 		{"azure-linux", "unsupported-dist"},
 		{"wind-river-elxr", "unsupported-version"},
 		{"ubuntu", "unsupported-version"},
-		{"madani", "unsupported-version"},
+		{"nanas", "unsupported-version"},
 	}
 
 	for _, tc := range testCases {

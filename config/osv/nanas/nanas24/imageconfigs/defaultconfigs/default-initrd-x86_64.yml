@@ -1,62 +1,54 @@
 image:
-  name: minimal-os-image-madani
+  name: minimal-os-image-nanas
   version: "24.04"
 
 target:
-  os: madani # Target OS name
-  dist: madani24 # Target OS distribution
-  arch: x86_64 # Target OS architecture
-  imageType: raw # Image type, valid value: [raw, iso].
-
-disk:
-  name: Default_Raw # 1:1 mapping to the systemConfigs name
-  artifacts:
-    -
-      type: raw  # image file format
-      compression: gz # image compression format (optional)
-  size: 6GiB # Increased to accommodate larger rootfs partition
-  partitionTableType: gpt # Partition table type, valid value: [gpt, mbr]
-  partitions: # Required for raw, optional for ISO, not needed for rootfs.
-    - id: boot
-      type: esp
-      flags:
-        - esp
-        - boot
-      start: 1MiB
-      end: 513MiB
-      fsType: fat32
-      mountPoint: /boot/efi
-      mountOptions: umask=0077
-
-    - id: rootfs
-      type: linux-root-amd64
-      start: 513MiB
-      end: "0"
-      fsType: ext4
-      mountPoint: /
-      mountOptions: defaults
+  os: nanas
+  dist: nanas24
+  arch: x86_64
+  imageType: img # Image type, valid value: [raw, iso].
 
 systemConfig:
-  name: Default_Raw
-  description: Default yml configuration for raw image
+  name: Default_Initrd
+  description: Default yml configuration for initrd image
 
   bootloader:
     bootType: efi # (efi or legacy)
-    provider: systemd-boot # (grub for efi and legacy mode, or systemd-boot for efi mode)
-
-  immutability:
-    enabled: false # default is false, you need 4 partitions for true immutability setup
+    provider: grub # (grub for efi and legacy mode, or systemd-boot for efi mode)
 
   packages:
+    # disk management
+    - udisks2
+    - util-linux
+    - udev
+    - os-prober
+    - efibootmgr
+    - kpartx
+    - ntfs-3g
+    - dosfstools
+    - e2fsprogs
+    - btrfs-progs
+    - xfsprogs
+    - parted
+    # operation
+    - qemu-utils
+    - pv
+    - dmidecode
+    - pciutils
+    - usbutils
+    - systemd
+    - python3
+    - python3-gi  # GTK bindings for Python
+    - gir1.2-gtk-3.0  # GTK 3.0 introspection data
+    - python3-gi-cairo  # Cairo bindings for GTK
+
     # base
     - ubuntu-minimal
-    - systemd-boot
-    - dracut-core
-    - systemd
-    - cryptsetup-bin
-    - openssh-server
-    - systemd-resolved
     - curl
+    # bootloader
+    - grub-pc-bin
+    - grub-efi-amd64-bin
+    - systemd-boot
     # GUI packages
     - xfce4 
     - xfce4-goodies    
@@ -70,6 +62,15 @@ systemConfig:
     - ssl-cert
     - lightdm
     - lightdm-gtk-greeter
+    - xinit
+    - xterm
+    - dbus
+    - policykit-1
+    - openbox
+    - openssh-server
+    - systemd-resolved
+    - cryptsetup-bin
+    - dracut-core
     #networking
     - net-tools
     - network-manager
@@ -79,13 +80,17 @@ systemConfig:
     - wpasupplicant
     #cloud init
     - cloud-init
-    - chrony  
+    - chrony
+    # edit
+    - nano
 
   additionalFiles:
     - local: ../additionalfiles/dhcp.network
       final: /etc/systemd/network/dhcp.network
     - local: ../additionalfiles/ubuntu-noble.list
       final: /etc/apt/sources.list.d/ubuntu-noble.list
+    - local: ../additionalfiles/mos-logo.png
+      final: /usr/share/nanas/nos-logo.png
     - local: ../additionalfiles/mos-wallpaper.png
       final: /usr/share/backgrounds/mos-wallpaper.png
     - local: ../additionalfiles/mos-wallpaper.png
@@ -108,7 +113,18 @@ systemConfig:
       final: /opt/software/run-dlstreamer-webcam.sh
     - local: ../additionalfiles/run-openclaw-configuration.sh
       final: /opt/software/run-openclaw-configuration.sh
-               
+    - local: ../additionalfiles/getty@.service
+      final: /usr/lib/systemd/system/getty@.service
+    - local: ../additionalfiles/serial-getty@.service
+      final: /usr/lib/systemd/system/serial-getty@.service
+    - local: ../../../../../general/isolinux/attendedinstaller
+      final: /root/attendedinstaller
+    # Nanas OS GUI Installer
+    - local: ../additionalfiles/installer-gui.py
+      final: /usr/local/bin/installer-gui.py
+    - local: ../additionalfiles/installer-launcher.sh
+      final: /usr/local/bin/installer-launcher.sh
+
   hookScripts:
     - local_post_download_packages: ../hookscripts/post_download.sh
       target_post_download_packages: /hooks/post_download.sh
@@ -116,8 +132,17 @@ systemConfig:
       target_post_rootfs: /etc/hooks/rebranding.sh
     - local_post_rootfs: ../hookscripts/cloudinit.sh
       target_post_rootfs: /etc/hooks/cloudinit.sh
-  
+    - local_post_rootfs: ../hookscripts/post_rootfs_initrd.sh
+      target_post_rootfs: /etc/hooks/post_rootfs_initrd.sh
+
+  users:
+    - name: root
+      startupScript: "/root/attendedinstaller"
+      password: ""
+      groups: ["sudo"]
+
   kernel:
+    name: kernel
     version: "6.14"
     cmdline: "console=ttyS0,115200 console=tty0 loglevel=7"
     packages:

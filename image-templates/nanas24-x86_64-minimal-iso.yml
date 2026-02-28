@@ -1,9 +1,9 @@
 image:
-  name: minimal-os-image-madani
+  name: minimal-os-image-nanas
   version: "24.04"
 
 target:
-  os: madani
-  dist: madani24
+  os: nanas
+  dist: nanas24
   arch: x86_64
   imageType: iso # Image type, valid value: [raw, iso].

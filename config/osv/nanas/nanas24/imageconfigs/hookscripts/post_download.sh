@@ -1,5 +1,5 @@
 #!/bin/bash
-# filepath: /data/madani-os-builder/config/osv/madani/madani24/imageconfigs/hookscripts/post_download.sh
+# filepath: /data/nanas-os-builder/config/osv/nanas/nanas24/imageconfigs/hookscripts/post_download.sh
 
 # Post-download hook script for package processing
 # Expected to output comma-separated list of downloaded packages

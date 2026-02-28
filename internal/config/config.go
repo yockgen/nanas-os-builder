@@ -258,7 +258,7 @@ func (t *ImageTemplate) GetProviderName() string {
 		"emt":             {"emt3": "EMT3.0"},
 		"wind-river-elxr": {"elxr12": "eLxr12"},
 		"ubuntu":          {"ubuntu24": "ubuntu24"},
-		"madani":          {"madani24": "madani24"},
+		"nanas":           {"nanas24": "nanas24"},
 	}
 
 	if providers, ok := providerMap[t.Target.OS]; ok {

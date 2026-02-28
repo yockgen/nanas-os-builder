@@ -29,7 +29,7 @@
         "os": {
           "type": "string",
           "description": "Target operating system",
-          "enum": ["azure-linux", "edge-microvisor-toolkit", "wind-river-elxr", "ubuntu","madani"]
+          "enum": ["azure-linux", "edge-microvisor-toolkit", "wind-river-elxr", "ubuntu","nanas"]
         },
         "dist": {
           "type": "string",
@@ -63,8 +63,8 @@
         },
         
         {
-          "if": { "properties": { "os": { "const": "madani" } } },
-          "then": { "properties": { "dist": { "enum": ["madani24"] } } }
+          "if": { "properties": { "os": { "const": "nanas" } } },
+          "then": { "properties": { "dist": { "enum": ["nanas24"] } } }
         }
       ]
     },

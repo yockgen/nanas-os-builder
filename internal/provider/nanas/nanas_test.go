@@ -1,4 +1,4 @@
-package madani
+package nanas
 
 import (
 	"fmt"
@@ -18,33 +18,33 @@ import (
 func createTestImageTemplate() *config.ImageTemplate {
 	return &config.ImageTemplate{
 		Image: config.ImageInfo{
-			Name:    "test-madani-image",
+			Name:    "test-nanas-image",
 			Version: "1.0.0",
 		},
 		Target: config.TargetInfo{
-			OS:        "madani",
-			Dist:      "madani24",
+			OS:        "nanas",
+			Dist:      "nanas24",
 			Arch:      "amd64",
 			ImageType: "raw",
 		},
 		SystemConfig: config.SystemConfig{
-			Name:        "test-madani-system",
-			Description: "Test Madani system configuration",
+			Name:        "test-nanas-system",
+			Description: "Test Nanas system configuration",
 			Packages:    []string{"curl", "wget", "vim"},
 		},
 	}
 }
 
-// TestMadaniProviderInterface tests that madani implements Provider interface
-func TestMadaniProviderInterface(t *testing.T) {
-	var _ provider.Provider = (*madani)(nil) // Compile-time interface check
+// TestNanasProviderInterface tests that nanas implements Provider interface
+func TestNanasProviderInterface(t *testing.T) {
+	var _ provider.Provider = (*nanas)(nil) // Compile-time interface check
 }
 
-// TestMadaniProviderName tests the Name method
-func TestMadaniProviderName(t *testing.T) {
-	madani := &madani{}
-	name := madani.Name("madani24", "amd64")
-	expected := "madani-madani24-amd64"
+// TestNanasProviderName tests the Name method
+func TestNanasProviderName(t *testing.T) {
+	nanas := &nanas{}
+	name := nanas.Name("nanas24", "amd64")
+	expected := "nanas-nanas24-amd64"
 
 	if name != expected {
 		t.Errorf("Expected name %s, got %s", expected, name)
@@ -58,9 +58,9 @@ func TestGetProviderId(t *testing.T) {
 		arch     string
 		expected string
 	}{
-		{"madani24", "amd64", "madani-madani24-amd64"},
-		{"madani24", "arm64", "madani-madani24-arm64"},
-		{"madani22", "x86_64", "madani-madani22-x86_64"},
+		{"nanas24", "amd64", "nanas-nanas24-amd64"},
+		{"nanas24", "arm64", "nanas-nanas24-arm64"},
+		{"nanas22", "x86_64", "nanas-nanas22-x86_64"},
 	}
 
 	for _, tc := range testCases {
@@ -73,8 +73,8 @@ func TestGetProviderId(t *testing.T) {
 	}
 }
 
-// TestMadaniProviderInit tests the Init method
-func TestMadaniProviderInit(t *testing.T) {
+// TestNanasProviderInit tests the Init method
+func TestNanasProviderInit(t *testing.T) {
 	// Change to project root for tests that need config files
 	originalDir, _ := os.Getwd()
 	defer func() {
@@ -83,38 +83,38 @@ func TestMadaniProviderInit(t *testing.T) {
 		}
 	}()
 
-	// Navigate to project root (3 levels up from internal/provider/madani)
+	// Navigate to project root (3 levels up from internal/provider/nanas)
 	if err := os.Chdir("../../../"); err != nil {
 		t.Skipf("Cannot change to project root: %v", err)
 		return
 	}
 
-	madani := &madani{}
+	nanas := &nanas{}
 
 	// Test with amd64 architecture
-	err := madani.Init("madani24", "amd64")
+	err := nanas.Init("nanas24", "amd64")
 	if err != nil {
 		// Expected to potentially fail in test environment due to network dependencies
 		t.Logf("Init failed as expected in test environment: %v", err)
 	} else {
 		// If it succeeds, verify the configuration was set up
-		if len(madani.repoCfgs) == 0 {
+		if len(nanas.repoCfgs) == 0 {
 			t.Error("Expected repoCfgs to be populated after successful Init")
 		}
 
 		// Verify that the architecture is correctly set in the config
-		for _, cfg := range madani.repoCfgs {
+		for _, cfg := range nanas.repoCfgs {
 			if cfg.Arch != "amd64" {
 				t.Errorf("Expected arch to be amd64, got %s", cfg.Arch)
 			}
 		}
 
-		t.Logf("Successfully initialized with %d repositories", len(madani.repoCfgs))
+		t.Logf("Successfully initialized with %d repositories", len(nanas.repoCfgs))
 	}
 }
 
-// TestMadaniProviderInitArchMapping tests architecture mapping in Init
-func TestMadaniProviderInitArchMapping(t *testing.T) {
+// TestNanasProviderInitArchMapping tests architecture mapping in Init
+func TestNanasProviderInitArchMapping(t *testing.T) {
 	// Change to project root for tests that need config files
 	originalDir, _ := os.Getwd()
 	defer func() {
@@ -123,27 +123,27 @@ func TestMadaniProviderInitArchMapping(t *testing.T) {
 		}
 	}()
 
-	// Navigate to project root (3 levels up from internal/provider/madani)
+	// Navigate to project root (3 levels up from internal/provider/nanas)
 	if err := os.Chdir("../../../"); err != nil {
 		t.Skipf("Cannot change to project root: %v", err)
 		return
 	}
 
-	madani := &madani{}
+	nanas := &nanas{}
 
 	// Test x86_64 -> amd64 mapping
-	err := madani.Init("madani24", "x86_64")
+	err := nanas.Init("nanas24", "x86_64")
 	if err != nil {
 		t.Logf("Init failed as expected: %v", err)
 	} else {
 		// Verify that repoCfgs were set up correctly
-		if len(madani.repoCfgs) == 0 {
+		if len(nanas.repoCfgs) == 0 {
 			t.Error("Expected repoCfgs to be populated after successful Init")
 			return
 		}
 
 		// Verify that the first repository has correct architecture mapping
-		firstRepo := madani.repoCfgs[0]
+		firstRepo := nanas.repoCfgs[0]
 		expectedArchInURL := "binary-amd64"
 		if firstRepo.PkgList != "" && !strings.Contains(firstRepo.PkgList, expectedArchInURL) {
 			t.Errorf("Expected PkgList to contain %s for x86_64 arch, got %s", expectedArchInURL, firstRepo.PkgList)
@@ -168,7 +168,7 @@ func TestLoadRepoConfig(t *testing.T) {
 		}
 	}()
 
-	// Navigate to project root (3 levels up from internal/provider/madani)
+	// Navigate to project root (3 levels up from internal/provider/nanas)
 	if err := os.Chdir("../../../"); err != nil {
 		t.Skipf("Cannot change to project root: %v", err)
 		return
@@ -245,8 +245,8 @@ func (m *mockChrootEnv) AptInstallPackage(packageName, installRoot string, repoS
 }
 func (m *mockChrootEnv) UpdateSystemPkgs(template *config.ImageTemplate) error { return nil }
 
-// TestMadaniProviderPreProcess tests PreProcess method with mocked dependencies
-func TestMadaniProviderPreProcess(t *testing.T) {
+// TestNanasProviderPreProcess tests PreProcess method with mocked dependencies
+func TestNanasProviderPreProcess(t *testing.T) {
 	// Save original shell executor and restore after test
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -264,22 +264,22 @@ func TestMadaniProviderPreProcess(t *testing.T) {
 		{Pattern: "apt-get install -y grub-common", Output: "Package installed successfully", Error: nil},
 		{Pattern: "apt-get install -y cryptsetup", Output: "Package installed successfully", Error: nil},
 		{Pattern: "apt-get install -y sbsigntool", Output: "Package installed successfully", Error: nil},
-		{Pattern: "apt-get install -y madani-keyring", Output: "Package installed successfully", Error: nil},
+		{Pattern: "apt-get install -y nanas-keyring", Output: "Package installed successfully", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
-	madani := &madani{
+	nanas := &nanas{
 		repoCfgs: []debutils.RepoConfig{
 			{
 				Section:     "main",
-				Name:        "Madani 24.04",
-				PkgList:     "https://archive.madani.com/madani/dists/noble/main/binary-amd64/Packages.gz",
-				PkgPrefix:   "https://archive.madani.com/madani/",
+				Name:        "Nanas 24.04",
+				PkgList:     "https://archive.nanas.com/nanas/dists/noble/main/binary-amd64/Packages.gz",
+				PkgPrefix:   "https://archive.nanas.com/nanas/",
 				Enabled:     true,
 				GPGCheck:    true,
-				ReleaseFile: "https://archive.madani.com/madani/dists/noble/Release",
-				ReleaseSign: "https://archive.madani.com/madani/dists/noble/Release.gpg",
-				BuildPath:   "/tmp/builds/madani1_amd64_main",
+				ReleaseFile: "https://archive.nanas.com/nanas/dists/noble/Release",
+				ReleaseSign: "https://archive.nanas.com/nanas/dists/noble/Release.gpg",
+				BuildPath:   "/tmp/builds/nanas1_amd64_main",
 				Arch:        "amd64",
 			},
 		},
@@ -290,14 +290,14 @@ func TestMadaniProviderPreProcess(t *testing.T) {
 
 	// This test will likely fail due to dependencies on chroot, debutils, etc.
 	// but it demonstrates the testing approach
-	err := madani.PreProcess(template)
+	err := nanas.PreProcess(template)
 	if err != nil {
 		t.Logf("PreProcess failed as expected due to external dependencies: %v", err)
 	}
 }
 
-// TestMadaniProviderBuildImage tests BuildImage method
-func TestMadaniProviderBuildImage(t *testing.T) {
+// TestNanasProviderBuildImage tests BuildImage method
+func TestNanasProviderBuildImage(t *testing.T) {
 	// Save original shell executor and restore after test
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -308,7 +308,7 @@ func TestMadaniProviderBuildImage(t *testing.T) {
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
-	// Try to register and get a properly initialized madani instance
+	// Try to register and get a properly initialized nanas instance
 	err := Register("linux", "test-build", "amd64")
 	if err != nil {
 		t.Skipf("Cannot test BuildImage without proper registration: %v", err)
@@ -323,9 +323,9 @@ func TestMadaniProviderBuildImage(t *testing.T) {
 		return
 	}
 
-	madani, ok := retrievedProvider.(*madani)
+	nanas, ok := retrievedProvider.(*nanas)
 	if !ok {
-		t.Skip("Retrieved provider is not a madani instance")
+		t.Skip("Retrieved provider is not a nanas instance")
 		return
 	}
 
@@ -333,7 +333,7 @@ func TestMadaniProviderBuildImage(t *testing.T) {
 
 	// This test will fail due to dependencies on image builders that require system access
 	// We expect it to fail early before reaching sudo commands
-	err = madani.BuildImage(template)
+	err = nanas.BuildImage(template)
 	if err != nil {
 		t.Logf("BuildImage failed as expected due to external dependencies: %v", err)
 		// Verify the error is related to expected failures, not sudo issues
@@ -343,8 +343,8 @@ func TestMadaniProviderBuildImage(t *testing.T) {
 	}
 }
 
-// TestMadaniProviderBuildImageISO tests BuildImage method with ISO type
-func TestMadaniProviderBuildImageISO(t *testing.T) {
+// TestNanasProviderBuildImageISO tests BuildImage method with ISO type
+func TestNanasProviderBuildImageISO(t *testing.T) {
 	// Save original shell executor and restore after test
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -355,7 +355,7 @@ func TestMadaniProviderBuildImageISO(t *testing.T) {
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
-	// Try to register and get a properly initialized madani instance
+	// Try to register and get a properly initialized nanas instance
 	err := Register("linux", "test-iso", "amd64")
 	if err != nil {
 		t.Skipf("Cannot test BuildImage (ISO) without proper registration: %v", err)
@@ -370,9 +370,9 @@ func TestMadaniProviderBuildImageISO(t *testing.T) {
 		return
 	}
 
-	madani, ok := retrievedProvider.(*madani)
+	nanas, ok := retrievedProvider.(*nanas)
 	if !ok {
-		t.Skip("Retrieved provider is not a madani instance")
+		t.Skip("Retrieved provider is not a nanas instance")
 		return
 	}
 
@@ -383,7 +383,7 @@ func TestMadaniProviderBuildImageISO(t *testing.T) {
 	defer func() { template.Target.ImageType = originalImageType }()
 	template.Target.ImageType = "iso"
 
-	err = madani.BuildImage(template)
+	err = nanas.BuildImage(template)
 	if err != nil {
 		t.Logf("BuildImage (ISO) failed as expected due to external dependencies: %v", err)
 		// Verify the error is related to expected failures, not sudo issues
@@ -393,8 +393,8 @@ func TestMadaniProviderBuildImageISO(t *testing.T) {
 	}
 }
 
-// TestMadaniProviderBuildImageInitrd tests BuildImage method with IMG type
-func TestMadaniProviderBuildImageInitrd(t *testing.T) {
+// TestNanasProviderBuildImageInitrd tests BuildImage method with IMG type
+func TestNanasProviderBuildImageInitrd(t *testing.T) {
 	// Save original shell executor and restore after test
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -405,7 +405,7 @@ func TestMadaniProviderBuildImageInitrd(t *testing.T) {
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
-	// Try to register and get a properly initialized madani instance
+	// Try to register and get a properly initialized nanas instance
 	err := Register("linux", "test-img", "amd64")
 	if err != nil {
 		t.Skipf("Cannot test BuildImage (IMG) without proper registration: %v", err)
@@ -420,9 +420,9 @@ func TestMadaniProviderBuildImageInitrd(t *testing.T) {
 		return
 	}
 
-	madani, ok := retrievedProvider.(*madani)
+	nanas, ok := retrievedProvider.(*nanas)
 	if !ok {
-		t.Skip("Retrieved provider is not a madani instance")
+		t.Skip("Retrieved provider is not a nanas instance")
 		return
 	}
 
@@ -433,7 +433,7 @@ func TestMadaniProviderBuildImageInitrd(t *testing.T) {
 	defer func() { template.Target.ImageType = originalImageType }()
 	template.Target.ImageType = "img"
 
-	err = madani.BuildImage(template)
+	err = nanas.BuildImage(template)
 	if err != nil {
 		t.Logf("BuildImage (IMG) failed as expected due to external dependencies: %v", err)
 		// Verify the error is related to expected failures, not sudo issues
@@ -443,8 +443,8 @@ func TestMadaniProviderBuildImageInitrd(t *testing.T) {
 	}
 }
 
-// TestMadaniProviderPostProcess tests PostProcess method
-func TestMadaniProviderPostProcess(t *testing.T) {
+// TestNanasProviderPostProcess tests PostProcess method
+func TestNanasProviderPostProcess(t *testing.T) {
 	// Save original shell executor and restore after test
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -455,7 +455,7 @@ func TestMadaniProviderPostProcess(t *testing.T) {
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
-	// Try to register and get a properly initialized madani instance
+	// Try to register and get a properly initialized nanas instance
 	err := Register("linux", "test-post", "amd64")
 	if err != nil {
 		t.Skipf("Cannot test PostProcess without proper registration: %v", err)
@@ -470,30 +470,30 @@ func TestMadaniProviderPostProcess(t *testing.T) {
 		return
 	}
 
-	madani, ok := retrievedProvider.(*madani)
+	nanas, ok := retrievedProvider.(*nanas)
 	if !ok {
-		t.Skip("Retrieved provider is not a madani instance")
+		t.Skip("Retrieved provider is not a nanas instance")
 		return
 	}
 
 	template := createTestImageTemplate()
 
 	// Test with no error
-	err = madani.PostProcess(template, nil)
+	err = nanas.PostProcess(template, nil)
 	if err != nil {
 		t.Logf("PostProcess failed as expected due to chroot cleanup dependencies: %v", err)
 	}
 
 	// Test with input error - PostProcess should clean up and return nil (not the input error)
 	inputError := fmt.Errorf("some build error")
-	err = madani.PostProcess(template, inputError)
+	err = nanas.PostProcess(template, inputError)
 	if err != nil {
 		t.Logf("PostProcess failed during cleanup: %v", err)
 	}
 }
 
-// TestMadaniProviderInstallHostDependency tests installHostDependency method
-func TestMadaniProviderInstallHostDependency(t *testing.T) {
+// TestNanasProviderInstallHostDependency tests installHostDependency method
+func TestNanasProviderInstallHostDependency(t *testing.T) {
 	// Save original shell executor and restore after test
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
@@ -510,7 +510,7 @@ func TestMadaniProviderInstallHostDependency(t *testing.T) {
 		{Pattern: "which grub-mkimage", Output: "", Error: nil},
 		{Pattern: "which veritysetup", Output: "", Error: nil},
 		{Pattern: "which sbsign", Output: "", Error: nil},
-		{Pattern: "which madani-keyring", Output: "", Error: nil},
+		{Pattern: "which nanas-keyring", Output: "", Error: nil},
 		// Mock successful installation commands
 		{Pattern: "apt-get install -y mmdebstrap", Output: "Success", Error: nil},
 		{Pattern: "apt-get install -y dosfstools", Output: "Success", Error: nil},
@@ -521,15 +521,15 @@ func TestMadaniProviderInstallHostDependency(t *testing.T) {
 		{Pattern: "apt-get install -y grub-common", Output: "Success", Error: nil},
 		{Pattern: "apt-get install -y cryptsetup", Output: "Success", Error: nil},
 		{Pattern: "apt-get install -y sbsigntool", Output: "Success", Error: nil},
-		{Pattern: "apt-get install -y madani-keyring", Output: "Success", Error: nil},
+		{Pattern: "apt-get install -y nanas-keyring", Output: "Success", Error: nil},
 	}
 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
-	madani := &madani{}
+	nanas := &nanas{}
 
 	// This test will likely fail due to dependencies on system.GetHostOsPkgManager()
 	// and shell.IsCommandExist(), but it demonstrates the testing approach
-	err := madani.installHostDependency()
+	err := nanas.installHostDependency()
 	if err != nil {
 		t.Logf("installHostDependency failed as expected due to external dependencies: %v", err)
 	} else {
@@ -537,25 +537,25 @@ func TestMadaniProviderInstallHostDependency(t *testing.T) {
 	}
 }
 
-// TestMadaniProviderInstallHostDependencyCommands tests the specific commands for host dependencies
-func TestMadaniProviderInstallHostDependencyCommands(t *testing.T) {
+// TestNanasProviderInstallHostDependencyCommands tests the specific commands for host dependencies
+func TestNanasProviderInstallHostDependencyCommands(t *testing.T) {
 	// Get the dependency map by examining the installHostDependency method
 	expectedDeps := map[string]string{
-		"mmdebstrap":     "mmdebstrap",
-		"mkfs.fat":       "dosfstools",
-		"mformat":        "mtools",
-		"xorriso":        "xorriso",
-		"qemu-img":       "qemu-utils",
-		"ukify":          "systemd-ukify",
-		"grub-mkimage":   "grub-common",
-		"veritysetup":    "cryptsetup",
-		"sbsign":         "sbsigntool",
-		"madani-keyring": "madani-keyring",
+		"mmdebstrap":    "mmdebstrap",
+		"mkfs.fat":      "dosfstools",
+		"mformat":       "mtools",
+		"xorriso":       "xorriso",
+		"qemu-img":      "qemu-utils",
+		"ukify":         "systemd-ukify",
+		"grub-mkimage":  "grub-common",
+		"veritysetup":   "cryptsetup",
+		"sbsign":        "sbsigntool",
+		"nanas-keyring": "nanas-keyring",
 	}
 
 	// This is a structural test to verify the dependency mapping
 	// In a real implementation, we might expose this map for testing
-	t.Logf("Expected host dependencies for Madani provider: %+v", expectedDeps)
+	t.Logf("Expected host dependencies for Nanas provider: %+v", expectedDeps)
 
 	// Verify we have the expected number of dependencies
 	if len(expectedDeps) != 10 {
@@ -571,20 +571,20 @@ func TestMadaniProviderInstallHostDependencyCommands(t *testing.T) {
 	}
 }
 
-// TestMadaniProviderRegister tests the Register function
-func TestMadaniProviderRegister(t *testing.T) {
+// TestNanasProviderRegister tests the Register function
+func TestNanasProviderRegister(t *testing.T) {
 	// Save original providers registry and restore after test
 	// Note: We can't easily access the provider registry for cleanup,
 	// so this test shows the approach but may leave test artifacts
 
-	err := Register("linux", "madani24", "amd64")
+	err := Register("linux", "nanas24", "amd64")
 	if err != nil {
 		t.Skipf("Cannot test registration due to missing dependencies: %v", err)
 		return
 	}
 
 	// Try to retrieve the registered provider
-	providerName := system.GetProviderId(OsName, "madani24", "amd64")
+	providerName := system.GetProviderId(OsName, "nanas24", "amd64")
 	retrievedProvider, exists := provider.Get(providerName)
 
 	if !exists {
@@ -592,41 +592,41 @@ func TestMadaniProviderRegister(t *testing.T) {
 		return
 	}
 
-	// Verify it's a madani provider
-	if madaniProvider, ok := retrievedProvider.(*madani); !ok {
-		t.Errorf("Expected madani provider, got %T", retrievedProvider)
+	// Verify it's a nanas provider
+	if nanasProvider, ok := retrievedProvider.(*nanas); !ok {
+		t.Errorf("Expected nanas provider, got %T", retrievedProvider)
 	} else {
 		// Test the Name method on the registered provider
-		name := madaniProvider.Name("madani24", "amd64")
+		name := nanasProvider.Name("nanas24", "amd64")
 		if name != providerName {
 			t.Errorf("Expected provider name %s, got %s", providerName, name)
 		}
 	}
 }
 
-// TestMadaniProviderWorkflow tests a complete madani provider workflow
-func TestMadaniProviderWorkflow(t *testing.T) {
+// TestNanasProviderWorkflow tests a complete nanas provider workflow
+func TestNanasProviderWorkflow(t *testing.T) {
 	// This is a unit test focused on testing the provider interface methods
 	// without external dependencies that require system access
 
-	madani := &madani{}
+	nanas := &nanas{}
 
 	// Test provider name generation
-	name := madani.Name("madani24", "amd64")
-	expectedName := "madani-madani24-amd64"
+	name := nanas.Name("nanas24", "amd64")
+	expectedName := "nanas-nanas24-amd64"
 	if name != expectedName {
 		t.Errorf("Expected name %s, got %s", expectedName, name)
 	}
 
 	// Test Init (will likely fail due to network dependencies)
-	if err := madani.Init("madani24", "amd64"); err != nil {
+	if err := nanas.Init("nanas24", "amd64"); err != nil {
 		t.Logf("Init failed as expected: %v", err)
 	} else {
 		// If Init succeeds, verify configuration was loaded
-		if len(madani.repoCfgs) == 0 {
+		if len(nanas.repoCfgs) == 0 {
 			t.Error("Expected repo config to be set after successful Init")
 		}
-		t.Logf("Repo configs loaded: %d repositories", len(madani.repoCfgs))
+		t.Logf("Repo configs loaded: %d repositories", len(nanas.repoCfgs))
 	}
 
 	// Skip PreProcess and BuildImage tests to avoid sudo commands
@@ -638,8 +638,8 @@ func TestMadaniProviderWorkflow(t *testing.T) {
 	t.Log("Complete workflow test finished - core methods exist and are callable")
 }
 
-// TestMadaniConfigurationStructure tests the structure of the madani configuration
-func TestMadaniConfigurationStructure(t *testing.T) {
+// TestNanasConfigurationStructure tests the structure of the nanas configuration
+func TestNanasConfigurationStructure(t *testing.T) {
 	// Change to project root for tests that need config files
 	originalDir, _ := os.Getwd()
 	defer func() {
@@ -648,7 +648,7 @@ func TestMadaniConfigurationStructure(t *testing.T) {
 		}
 	}()
 
-	// Navigate to project root (3 levels up from internal/provider/madani)
+	// Navigate to project root (3 levels up from internal/provider/nanas)
 	if err := os.Chdir("../../../"); err != nil {
 		t.Skipf("Cannot change to project root: %v", err)
 		return
@@ -659,13 +659,13 @@ func TestMadaniConfigurationStructure(t *testing.T) {
 		t.Error("OsName should not be empty")
 	}
 
-	expectedOsName := "madani"
+	expectedOsName := "nanas"
 	if OsName != expectedOsName {
 		t.Errorf("Expected OsName %s, got %s", expectedOsName, OsName)
 	}
 
 	// Test that we can load provider config
-	providerConfigs, err := config.LoadProviderRepoConfig(OsName, "madani24")
+	providerConfigs, err := config.LoadProviderRepoConfig(OsName, "nanas24")
 	if err != nil {
 		t.Logf("Cannot load provider config in test environment: %v", err)
 	} else {
@@ -681,8 +681,8 @@ func TestMadaniConfigurationStructure(t *testing.T) {
 	}
 }
 
-// TestMadaniArchitectureHandling tests architecture-specific URL construction
-func TestMadaniArchitectureHandling(t *testing.T) {
+// TestNanasArchitectureHandling tests architecture-specific URL construction
+func TestNanasArchitectureHandling(t *testing.T) {
 	// Change to project root for tests that need config files
 	originalDir, _ := os.Getwd()
 	defer func() {
@@ -691,7 +691,7 @@ func TestMadaniArchitectureHandling(t *testing.T) {
 		}
 	}()
 
-	// Navigate to project root (3 levels up from internal/provider/madani)
+	// Navigate to project root (3 levels up from internal/provider/nanas)
 	if err := os.Chdir("../../../"); err != nil {
 		t.Skipf("Cannot change to project root: %v", err)
 		return
@@ -708,20 +708,20 @@ func TestMadaniArchitectureHandling(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.inputArch, func(t *testing.T) {
-			madani := &madani{}
-			err := madani.Init("madani24", tc.inputArch) // Test arch mapping
+			nanas := &nanas{}
+			err := nanas.Init("nanas24", tc.inputArch) // Test arch mapping
 
 			if err != nil {
 				t.Logf("Init failed as expected: %v", err)
 			} else {
 				// We expect success, so we can check arch mapping
-				if len(madani.repoCfgs) == 0 {
+				if len(nanas.repoCfgs) == 0 {
 					t.Error("Expected repoCfgs to be populated after successful Init")
 					return
 				}
 
 				// Check the first repository configuration
-				firstRepo := madani.repoCfgs[0]
+				firstRepo := nanas.repoCfgs[0]
 				if firstRepo.Arch != tc.expectedArch {
 					t.Errorf("For input arch %s, expected config arch %s, got %s", tc.inputArch, tc.expectedArch, firstRepo.Arch)
 				}
@@ -740,11 +740,11 @@ func TestMadaniArchitectureHandling(t *testing.T) {
 	}
 }
 
-// TestMadaniBuildImageNilTemplate tests BuildImage with nil template
-func TestMadaniBuildImageNilTemplate(t *testing.T) {
-	madani := &madani{}
+// TestNanasBuildImageNilTemplate tests BuildImage with nil template
+func TestNanasBuildImageNilTemplate(t *testing.T) {
+	nanas := &nanas{}
 
-	err := madani.BuildImage(nil)
+	err := nanas.BuildImage(nil)
 	if err == nil {
 		t.Error("Expected error when template is nil")
 	}
@@ -755,14 +755,14 @@ func TestMadaniBuildImageNilTemplate(t *testing.T) {
 	}
 }
 
-// TestMadaniBuildImageUnsupportedType tests BuildImage with unsupported image type
-func TestMadaniBuildImageUnsupportedType(t *testing.T) {
-	madani := &madani{}
+// TestNanasBuildImageUnsupportedType tests BuildImage with unsupported image type
+func TestNanasBuildImageUnsupportedType(t *testing.T) {
+	nanas := &nanas{}
 
 	template := createTestImageTemplate()
 	template.Target.ImageType = "unsupported"
 
-	err := madani.BuildImage(template)
+	err := nanas.BuildImage(template)
 	if err == nil {
 		t.Error("Expected error for unsupported image type")
 	}
@@ -773,9 +773,9 @@ func TestMadaniBuildImageUnsupportedType(t *testing.T) {
 	}
 }
 
-// TestMadaniBuildImageValidTypes tests BuildImage error handling for valid image types
-func TestMadaniBuildImageValidTypes(t *testing.T) {
-	madani := &madani{}
+// TestNanasBuildImageValidTypes tests BuildImage error handling for valid image types
+func TestNanasBuildImageValidTypes(t *testing.T) {
+	nanas := &nanas{}
 
 	validTypes := []string{"raw", "img", "iso"}
 
@@ -786,7 +786,7 @@ func TestMadaniBuildImageValidTypes(t *testing.T) {
 
 			// These will fail due to missing chrootEnv, but we can verify
 			// that the code path is reached and the error is expected
-			err := madani.BuildImage(template)
+			err := nanas.BuildImage(template)
 			if err == nil {
 				t.Errorf("Expected error for image type %s (missing dependencies)", imageType)
 			} else {
@@ -801,17 +801,17 @@ func TestMadaniBuildImageValidTypes(t *testing.T) {
 	}
 }
 
-// TestMadaniPostProcessErrorHandling tests PostProcess method signature and basic behavior
-func TestMadaniPostProcessErrorHandling(t *testing.T) {
+// TestNanasPostProcessErrorHandling tests PostProcess method signature and basic behavior
+func TestNanasPostProcessErrorHandling(t *testing.T) {
 	// Test that PostProcess method exists and has correct signature
 	// We verify that the method can be called and behaves predictably
 
-	madani := &madani{}
+	nanas := &nanas{}
 	template := createTestImageTemplate()
 	inputError := fmt.Errorf("build failed")
 
 	// Verify the method signature is correct by assigning it to a function variable
-	var postProcessFunc func(*config.ImageTemplate, error) error = madani.PostProcess
+	var postProcessFunc func(*config.ImageTemplate, error) error = nanas.PostProcess
 
 	t.Logf("PostProcess method has correct signature: %T", postProcessFunc)
 
@@ -825,12 +825,12 @@ func TestMadaniPostProcessErrorHandling(t *testing.T) {
 	}()
 
 	// This will panic due to nil chrootEnv, which we catch above
-	_ = madani.PostProcess(template, inputError)
+	_ = nanas.PostProcess(template, inputError)
 }
 
-// TestMadaniDownloadImagePkgs tests downloadImagePkgs method structure
-func TestMadaniDownloadImagePkgs(t *testing.T) {
-	madani := &madani{
+// TestNanasDownloadImagePkgs tests downloadImagePkgs method structure
+func TestNanasDownloadImagePkgs(t *testing.T) {
+	nanas := &nanas{
 		repoCfgs: []debutils.RepoConfig{
 			{
 				Name:      "Test Repository",
@@ -847,7 +847,7 @@ func TestMadaniDownloadImagePkgs(t *testing.T) {
 
 	// This test will likely fail due to network dependencies and debutils package resolution,
 	// but it validates the method structure and error handling
-	err := madani.downloadImagePkgs(template)
+	err := nanas.downloadImagePkgs(template)
 	if err != nil {
 		t.Logf("downloadImagePkgs failed as expected due to external dependencies: %v", err)
 		// Verify error messages to ensure proper error handling
@@ -863,9 +863,9 @@ func TestMadaniDownloadImagePkgs(t *testing.T) {
 	}
 }
 
-// TestMadaniMultipleRepositories tests handling of multiple repositories
-func TestMadaniMultipleRepositories(t *testing.T) {
-	madani := &madani{
+// TestNanasMultipleRepositories tests handling of multiple repositories
+func TestNanasMultipleRepositories(t *testing.T) {
+	nanas := &nanas{
 		repoCfgs: []debutils.RepoConfig{
 			{
 				Name:      "Main Repository",
@@ -888,7 +888,7 @@ func TestMadaniMultipleRepositories(t *testing.T) {
 	template := createTestImageTemplate()
 
 	// Test downloadImagePkgs with multiple repositories
-	err := madani.downloadImagePkgs(template)
+	err := nanas.downloadImagePkgs(template)
 	if err != nil {
 		t.Logf("downloadImagePkgs with multiple repos failed as expected: %v", err)
 		// Should not fail due to "no repository configurations available"
@@ -905,8 +905,8 @@ func TestMadaniMultipleRepositories(t *testing.T) {
 	}
 }
 
-// TestMadaniLoadRepoConfigMultiple tests loadRepoConfig with multiple repositories
-func TestMadaniLoadRepoConfigMultiple(t *testing.T) {
+// TestNanasLoadRepoConfigMultiple tests loadRepoConfig with multiple repositories
+func TestNanasLoadRepoConfigMultiple(t *testing.T) {
 	// Change to project root for tests that need config files
 	originalDir, _ := os.Getwd()
 	defer func() {
@@ -915,7 +915,7 @@ func TestMadaniLoadRepoConfigMultiple(t *testing.T) {
 		}
 	}()
 
-	// Navigate to project root (3 levels up from internal/provider/madani)
+	// Navigate to project root (3 levels up from internal/provider/nanas)
 	if err := os.Chdir("../../../"); err != nil {
 		t.Skipf("Cannot change to project root: %v", err)
 		return
@@ -957,9 +957,9 @@ func TestMadaniLoadRepoConfigMultiple(t *testing.T) {
 	}
 }
 
-// TestMadaniOsNameConstant tests the OsName constant value
-func TestMadaniOsNameConstant(t *testing.T) {
-	expectedOsName := "madani"
+// TestNanasOsNameConstant tests the OsName constant value
+func TestNanasOsNameConstant(t *testing.T) {
+	expectedOsName := "nanas"
 	if OsName != expectedOsName {
 		t.Errorf("Expected OsName constant to be '%s', got '%s'", expectedOsName, OsName)
 	}

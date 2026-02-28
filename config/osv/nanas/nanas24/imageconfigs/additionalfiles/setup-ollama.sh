@@ -54,9 +54,9 @@ sudo systemctl enable ollama
 systemctl restart ollama
 echo "✓ Ollama service started via systemctl"
 
-# 6. Pull tinyllama model
+# 6. Pull qwen3:0.6b model
 echo "Waiting 20 seconds before starting Ollama service..."
 sleep 20
-echo "Pulling tinyllama model..."
-ollama pull tinyllama
-echo "✓ tinyllama model pulled successfully"
+echo "Pulling qwen3:0.6b model..."
+ollama pull qwen3:0.6b
+echo "✓ qwen3:0.6b model pulled successfully"
