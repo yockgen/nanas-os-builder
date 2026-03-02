@@ -1,36 +1,42 @@
 #!/bin/bash
-set -e
 
-# 1. Cleanup and Directory Creation
-echo "Cleaning up old data..."
-sudo rm -rf /home/openclaw/.openclaw
-sudo mkdir -p /home/openclaw/.openclaw/{agents,canvas,completions,credentials,cron,identity,logs,workspace,devices}
-sudo chown -R openclaw:openclaw /home/openclaw/.openclaw
+# Redirect all output to a custom log
+exec > >(tee -a /var/log/openclaw-config-trace.log) 2>&1
 
-# 2. Run Setup FIRST (to generate openclaw.json and .env)
-echo "Running openclaw setup..."
-sudo -u openclaw /home/openclaw/run-openclaw-podman.sh setup
+echo "--- OpenClaw Configuration started at $(date) ---"
 
-# 3. FIX PERMISSIONS for Podman (The missing link)
-echo "Aligning internal container permissions..."
-sudo -u openclaw podman unshare chown -R 1000:1000 /home/openclaw/.openclaw
-sudo -u openclaw podman unshare chmod -R 775 /home/openclaw/.openclaw
+# Set up environment
+export HOME=/root
+export PATH="$HOME/.npm-global/bin:$PATH"
 
-# 4. Remove and Start Container
-echo "Restarting openclaw container..."
-sudo -u openclaw podman rm -f openclaw || true
-sudo -u openclaw podman run -d \
-  --name openclaw \
-  --network host \
-  -v /home/openclaw/.openclaw:/home/node/.openclaw:Z \
-  -e OPENCLAW_GATEWAY_HOST=0.0.0.0 \
-  localhost/openclaw:local
+# 1. Install OpenClaw gateway
+echo "Installing OpenClaw gateway..."
+openclaw gateway install
+if [ $? -eq 0 ]; then
+    echo "✓ OpenClaw gateway installed successfully"
+else
+    echo "✗ OpenClaw gateway installation failed"
+    exit 1
+fi
 
-# 5. Extract and display master token
-echo "Waiting for config to settle..."
-sleep 2
-TOKEN=$(sudo cat /home/openclaw/.openclaw/openclaw.json | grep -oP '"token":\s*"\K[^"]+')
-echo "------------------------------------------------"
-echo "YOUR MASTER TOKEN: $TOKEN"
-echo "URL: http://$(hostname -I | awk '{print $1}'):18789/#token=$TOKEN"
-echo "------------------------------------------------"
+# 2. Configure OpenClaw
+echo "Configuring OpenClaw..."
+openclaw configure
+if [ $? -eq 0 ]; then
+    echo "✓ OpenClaw configured successfully"
+else
+    echo "✗ OpenClaw configuration failed"
+    exit 1
+fi
+
+# 3. Start OpenClaw dashboard
+echo "Starting OpenClaw dashboard..."
+openclaw dashboard
+if [ $? -eq 0 ]; then
+    echo "✓ OpenClaw dashboard started successfully"
+else
+    echo "✗ OpenClaw dashboard failed to start"
+    exit 1
+fi
+
+echo "--- OpenClaw Configuration completed at $(date) ---"
