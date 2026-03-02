@@ -6,7 +6,6 @@ exec > >(tee -a /var/log/openclaw-config-trace.log) 2>&1
 echo "--- OpenClaw Configuration started at $(date) ---"
 
 # Set up environment
-export HOME=/root
 export PATH="$HOME/.npm-global/bin:$PATH"
 
 # 1. Install OpenClaw gateway
