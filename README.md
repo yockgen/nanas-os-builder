@@ -16,6 +16,7 @@ Developed in Go, the tool specializes in building custom Nanas OS images optimiz
 ## Table of Contents
 
 - [Overview](#overview)
+- [Download Pre-built Images](#download-pre-built-images)
 - [System Requirements](#system-requirements)
   - [Windows WSL Setup (Automated)](#windows-wsl-setup-automated)
 - [Quick Start Guide](#quick-start-guide)
@@ -34,11 +35,37 @@ Developed in Go, the tool specializes in building custom Nanas OS images optimiz
 
 ---
 
+## Download Pre-built Images
+
+If you prefer to use pre-built Nanas OS images instead of building from source, you can download them directly:
+
+### Available Downloads
+
+- **Raw Image (Disk Image)**: Direct deployment to physical hardware or virtual machines
+  - [Download Raw Image](https://drive.google.com/file/d/1o0XiDadFpjzmRCMTW-N8BMfyAz53gmNv/view?usp=sharing)
+
+- **ISO Image (Installation Media)**: Bootable installation media for setting up Nanas OS
+  - [Download ISO Image](https://drive.google.com/file/d/1TYFojKn3aDL83x1O1FNC4LWjzVN_BRNZ/view?usp=sharing)
+
+> **Note:** These pre-built images are ready-to-use versions of Nanas OS with optimized configurations for AI workloads on resource-constrained hardware.
+
+---
+
 ## System Requirements
 
-**Recommended Operating System:** Ubuntu 24.04
+### Build Requirements
 
-> **Note:** Nanas Team has validated and recommends using Ubuntu OS version 24.04. Other Linux distributions have not been validated. Future releases will include a containerized version for enhanced portability.
+**Recommended Operating System for Building:** Ubuntu 24.04
+
+> **Note:** These requirements are for **building** Nanas OS images, not for running the final OS. Nanas Team has validated and recommends using Ubuntu OS version 24.04 for the build process. Other Linux distributions have not been validated. Future releases will include a containerized version for enhanced portability.
+
+### Deployment Requirements
+
+**Target Hardware:** The built Nanas OS is optimized for low-end machines and has been successfully tested on:
+- 2017 Intel Kaby Lake PCs
+- Other resource-constrained hardware with minimal system requirements
+
+> **Note:** The final Nanas OS images are designed to run efficiently on much lower specifications than what's required for building them.
 
 ### Windows WSL Setup (Automated)
 
