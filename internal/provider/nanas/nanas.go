@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/open-edge-platform/os-image-composer/internal/chroot"
 	"github.com/open-edge-platform/os-image-composer/internal/config"
-	"github.com/open-edge-platform/os-image-composer/internal/config/manifest"
 	"github.com/open-edge-platform/os-image-composer/internal/image/initrdmaker"
 	"github.com/open-edge-platform/os-image-composer/internal/image/isomaker"
 	"github.com/open-edge-platform/os-image-composer/internal/image/rawmaker"
@@ -73,6 +73,11 @@ func (p *nanas) Init(dist, arch string) error {
 }
 
 func (p *nanas) PreProcess(template *config.ImageTemplate) error {
+	// Generate apt sources file from packageRepositories
+	if err := template.GenerateAptSourcesFromRepositories(); err != nil {
+		return fmt.Errorf("failed to generate apt sources from repositories: %w", err)
+	}
+
 	if err := p.installHostDependency(); err != nil {
 		return fmt.Errorf("failed to install host dependencies: %w", err)
 	}
@@ -272,6 +277,7 @@ func (p *nanas) downloadImagePkgs(template *config.ImageTemplate) error {
 		return fmt.Errorf("failed to update system packages: %w", err)
 	}
 	pkgList := template.GetPackages()
+	pkgSources := template.GetPackageSourceMap()
 	providerId := p.Name(template.Target.Dist, template.Target.Arch)
 	globalCache, err := config.CacheDir()
 	if err != nil {
@@ -284,6 +290,41 @@ func (p *nanas) downloadImagePkgs(template *config.ImageTemplate) error {
 		return fmt.Errorf("no repository configurations available")
 	}
 
+	// Get user repositories from template
+	userRepos := template.GetPackageRepositories()
+
+	// Build user repository configurations and add them to the list
+	arch := p.repoCfgs[0].Arch
+
+	var userRepoList []debutils.Repository
+	for _, userRepo := range userRepos {
+		// Skip placeholder repositories
+		if userRepo.URL == "<URL>" || userRepo.URL == "" {
+			continue
+		}
+		baseURL := strings.TrimPrefix(strings.TrimPrefix(userRepo.URL, "http://"), "https://")
+		userRepoList = append(userRepoList, debutils.Repository{
+			ID:            fmt.Sprintf("user-%s", baseURL),
+			Codename:      userRepo.Codename,
+			URL:           userRepo.URL,
+			PKey:          userRepo.PKey,
+			Component:     userRepo.Component,
+			Priority:      userRepo.Priority,
+			AllowPackages: userRepo.AllowPackages,
+		})
+	}
+
+	// Build user repo configs and add to the provider repos
+	if len(userRepoList) > 0 {
+		userRepoCfgs, err := debutils.BuildRepoConfigs(userRepoList, arch)
+		if err != nil {
+			log.Warnf("Failed to build user repo configs: %v", err)
+		} else {
+			p.repoCfgs = append(p.repoCfgs, userRepoCfgs...)
+			log.Infof("Added %d user repositories to configuration", len(userRepoCfgs))
+		}
+	}
+
 	// Set up all repositories for debutils
 	debutils.RepoCfgs = p.repoCfgs
 
@@ -292,26 +333,22 @@ func (p *nanas) downloadImagePkgs(template *config.ImageTemplate) error {
 	debutils.RepoCfg = primaryRepo
 	debutils.GzHref = primaryRepo.PkgList
 	debutils.Architecture = primaryRepo.Arch
-	debutils.UserRepo = template.GetPackageRepositories()
+	debutils.UserRepo = userRepos
 
 	log.Infof("Configured %d repositories for package download", len(p.repoCfgs))
 	for i, cfg := range p.repoCfgs {
-		log.Infof("Repository %d: %s (%s)", i+1, cfg.Name, cfg.PkgList)
+		log.Infof("Repository %d: name=%s, package list url=%s, package download url=%s, priority=%d",
+			i+1, cfg.Name, cfg.PkgList, cfg.PkgPrefix, cfg.Priority)
 	}
 
-	//template.FullPkgList, err = debutils.DownloadPackages(pkgList, pkgCacheDir, "")
-	fullPkgList, fullPkgListBom, err := debutils.DownloadPackagesComplete(pkgList, pkgCacheDir, "")
+	fullPkgList, fullPkgListBom, err := debutils.DownloadPackagesComplete(pkgList, pkgCacheDir, "", pkgSources, false)
+	if err != nil {
+		return fmt.Errorf("failed to download packages: %w", err)
+	}
 	template.FullPkgList = fullPkgList
+	template.FullPkgListBom = fullPkgListBom
 
-	// Generate SPDX manifest, generated in temp directory
-	manifest.DefaultSPDXFile = debutils.GenerateSPDXFileName(p.repoCfgs[0].Name)
-	spdxFile := filepath.Join(config.TempDir(), manifest.DefaultSPDXFile)
-	if err := manifest.WriteSPDXToFile(fullPkgListBom, spdxFile); err != nil {
-		return fmt.Errorf("SPDX SBOM creation error: %w", err)
-	}
-	log.Infof("SPDX file created at %s", spdxFile)
-
-	return err
+	return nil
 }
 
 func loadRepoConfig(repoUrl string, arch string) ([]debutils.RepoConfig, error) {
@@ -343,6 +380,7 @@ func loadRepoConfig(repoUrl string, arch string) ([]debutils.RepoConfig, error) 
 			URL:       baseURL,
 			PKey:      gpgKey,
 			Component: component,
+			Priority:  500, // Default APT priority for standard repositories
 		}
 	}
 

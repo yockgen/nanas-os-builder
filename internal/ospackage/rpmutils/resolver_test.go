@@ -9,8 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"github.com/open-edge-platform/os-image-composer/internal/config"
 	"github.com/open-edge-platform/os-image-composer/internal/ospackage"
 	"github.com/open-edge-platform/os-image-composer/internal/ospackage/resolvertest"
 )
@@ -79,6 +81,26 @@ func TestExtractBaseRequirement(t *testing.T) {
 			input:    "/bin/sh",
 			expected: "/bin/sh",
 		},
+		{
+			name:     "complex conditional dependency",
+			input:    "((kernel-modules-extra-uname-r = 6.12.0-174.el10.x86_64) if kernel-modules-extra-matched)",
+			expected: "kernel-modules-extra-uname-r",
+		},
+		{
+			name:     "simple parentheses without spaces",
+			input:    "(linux-firmware)",
+			expected: "linux-firmware",
+		},
+		{
+			name:     "simple parentheses with version constraint",
+			input:    "(glibc >= 2.17)",
+			expected: "glibc",
+		},
+		{
+			name:     "complex conditional dependency with >= operator",
+			input:    "((linux-firmware >= 20150904-56.git6ebf5d57) if linux-firmware)",
+			expected: "linux-firmware",
+		},
 	}
 
 	for _, tt := range tests {
@@ -103,6 +125,7 @@ func TestGenerateDot(t *testing.T) {
 		name        string
 		packages    []ospackage.PackageInfo
 		filename    string
+		pkgSources  map[string]config.PackageSource
 		expectError bool
 	}{
 		{
@@ -154,6 +177,38 @@ func TestGenerateDot(t *testing.T) {
 				},
 			},
 			filename:    filepath.Join(tmpDir, "special_chars.dot"),
+			expectError: false,
+		},
+		{
+			name: "with package source colors",
+			packages: []ospackage.PackageInfo{
+				{Name: "kernel", Requires: []string{}},
+				{Name: "boot", Requires: []string{}},
+			},
+			filename: filepath.Join(tmpDir, "sources.dot"),
+			pkgSources: map[string]config.PackageSource{
+				"kernel": config.PackageSourceKernel,
+				"boot":   config.PackageSourceBootloader,
+			},
+			expectError: false,
+		},
+		{
+			name: "duplicate dependencies should be deduplicated",
+			packages: []ospackage.PackageInfo{
+				{
+					Name:     "libstdc++",
+					Requires: []string{"glibc", "glibc", "glibc", "libgcc", "libgcc"},
+				},
+				{
+					Name:     "glibc",
+					Requires: []string{},
+				},
+				{
+					Name:     "libgcc",
+					Requires: []string{"glibc"},
+				},
+			},
+			filename:    filepath.Join(tmpDir, "dedup.dot"),
 			expectError: false,
 		},
 	}
@@ -262,7 +317,7 @@ func TestParsePrimary(t *testing.T) {
 			defer server.Close()
 
 			// Test ParseRepositoryMetadata
-			packages, err := ParseRepositoryMetadata(server.URL+"/", tt.filename)
+			packages, err := ParseRepositoryMetadata(server.URL+"/", tt.filename, nil)
 
 			if tt.expectedError {
 				if err == nil {
@@ -319,6 +374,67 @@ func TestParsePrimary(t *testing.T) {
 				if bashPkg.Origin != "Red Hat, Inc." {
 					t.Errorf("bash origin should be 'Red Hat, Inc.', got %s", bashPkg.Origin)
 				}
+			}
+		})
+	}
+}
+
+func TestMatchesPackageFilter(t *testing.T) {
+	tests := []struct {
+		name    string
+		pkgName string
+		filter  []string
+		want    bool
+	}{
+		{
+			name:    "empty filter allows all",
+			pkgName: "any-package",
+			filter:  nil,
+			want:    true,
+		},
+		{
+			name:    "exact match",
+			pkgName: "qemu-common",
+			filter:  []string{"qemu-common"},
+			want:    true,
+		},
+		{
+			name:    "prefix version match",
+			pkgName: "kernel-drivers-gpu-6.17.11-1.emt3.x86_64",
+			filter:  []string{"kernel-drivers-gpu-6.17.11"},
+			want:    true,
+		},
+		{
+			name:    "glob wildcard wayland",
+			pkgName: "wayland-protocols-devel",
+			filter:  []string{"wayland*"},
+			want:    true,
+		},
+		{
+			name:    "glob wildcard libva",
+			pkgName: "libva-intel-media-driver",
+			filter:  []string{"libva*"},
+			want:    true,
+		},
+		{
+			name:    "glob wildcard no match",
+			pkgName: "mesa-libEGL",
+			filter:  []string{"wayland*", "libva*"},
+			want:    false,
+		},
+		{
+			name:    "invalid glob does not match and does not fail",
+			pkgName: "wayland",
+			filter:  []string{"wayland["},
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchesPackageFilter(tt.pkgName, tt.filter)
+			if got != tt.want {
+				t.Errorf("matchesPackageFilter(%q, %v) = %v, want %v", tt.pkgName, tt.filter, got, tt.want)
 			}
 		})
 	}
@@ -381,6 +497,18 @@ func TestMatchRequestedAdvanced(t *testing.T) {
 			Arch:    "src",
 			URL:     "https://repo.example.com/package-with-src-1.0-1.src.rpm",
 		},
+		{
+			Name:    "wayland",
+			Version: "1.20.0-1.azl3",
+			Arch:    "x86_64",
+			URL:     "https://repo.example.com/wayland-1.20.0-1.azl3.x86_64.rpm",
+		},
+		{
+			Name:    "wayland-devel",
+			Version: "1.20.0-1.azl3",
+			Arch:    "x86_64",
+			URL:     "https://repo.example.com/wayland-devel-1.20.0-1.azl3.x86_64.rpm",
+		},
 	}
 
 	tests := []struct {
@@ -431,6 +559,13 @@ func TestMatchRequestedAdvanced(t *testing.T) {
 			requests:      []string{"curl", "nonexistent"},
 			expectError:   true,
 			expectedCount: 0,
+		},
+		{
+			name:          "Wildcard request expands to multiple packages",
+			requests:      []string{"wayland*"},
+			expectError:   false,
+			expectedCount: 2,
+			expectedNames: []string{"wayland", "wayland-devel"},
 		},
 	}
 
@@ -514,5 +649,50 @@ func TestGetRepoMetaDataURL(t *testing.T) {
 					tt.baseURL, tt.repoMetaXmlPath, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestParseRepositoryMetadata_RetryTransientFailure(t *testing.T) {
+	var requestCount int32
+	xmlContent := `<?xml version="1.0" encoding="UTF-8"?><metadata xmlns="http://linux.duke.edu/metadata/common" xmlns:rpm="http://linux.duke.edu/metadata/rpm" packages="1"><package type="rpm"><name>bash</name><arch>x86_64</arch><location href="bash-5.1-8.el9.x86_64.rpm"/></package></metadata>`
+	compressed := compressGzip(t, xmlContent)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		current := atomic.AddInt32(&requestCount, 1)
+		if current <= 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(compressed)
+	}))
+	defer server.Close()
+
+	pkgs, err := ParseRepositoryMetadata(server.URL+"/", "primary.xml.gz", nil)
+	if err != nil {
+		t.Fatalf("expected retry to succeed, got error: %v", err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(pkgs))
+	}
+	if atomic.LoadInt32(&requestCount) != 3 {
+		t.Fatalf("expected 3 requests, got %d", atomic.LoadInt32(&requestCount))
+	}
+}
+
+func TestFetchPrimaryURL_NoRetryOnPermanentFailure(t *testing.T) {
+	var requestCount int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requestCount, 1)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	_, err := FetchPrimaryURL(server.URL + "/repodata/repomd.xml")
+	if err == nil {
+		t.Fatalf("expected error for permanent 404 response")
+	}
+	if atomic.LoadInt32(&requestCount) != 1 {
+		t.Fatalf("expected 1 request for permanent error, got %d", atomic.LoadInt32(&requestCount))
 	}
 }

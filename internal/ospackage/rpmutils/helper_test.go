@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/open-edge-platform/os-image-composer/internal/config"
 	"github.com/open-edge-platform/os-image-composer/internal/ospackage"
 )
 
@@ -203,6 +204,26 @@ func TestExtractBaseNameFromDep(t *testing.T) {
 			name:     "Package with version constraint",
 			req:      "glibc >= 2.17",
 			expected: "glibc",
+		},
+		{
+			name:     "Complex conditional dependency",
+			req:      "((kernel-modules-extra-uname-r = 6.12.0-174.el10.x86_64) if kernel-modules-extra-matched)",
+			expected: "kernel-modules-extra-uname-r",
+		},
+		{
+			name:     "Simple parentheses without spaces",
+			req:      "(linux-firmware)",
+			expected: "linux-firmware",
+		},
+		{
+			name:     "Simple parentheses with version constraint",
+			req:      "(glibc >= 2.17)",
+			expected: "glibc",
+		},
+		{
+			name:     "Complex conditional dependency with >= operator",
+			req:      "((linux-firmware >= 20150904-56.git6ebf5d57) if linux-firmware)",
+			expected: "linux-firmware",
 		},
 	}
 
@@ -499,6 +520,14 @@ func TestResolveTopPackageConflicts(t *testing.T) {
 			Name:    "acct-other",
 			Version: "2.0-1.azl3",
 		},
+		{
+			Name:    "wayland-1.20.0-1.azl3.x86_64.rpm",
+			Version: "1.20.0-1.azl3",
+		},
+		{
+			Name:    "wayland-devel-1.22.0-1.azl3.x86_64.rpm",
+			Version: "1.22.0-1.azl3",
+		},
 	}
 
 	tests := []struct {
@@ -536,6 +565,13 @@ func TestResolveTopPackageConflicts(t *testing.T) {
 			dist:        "",
 			expectFound: false,
 		},
+		{
+			name:        "Wildcard match",
+			want:        "wayland*",
+			dist:        "",
+			expectedPkg: "wayland-devel-1.22.0-1.azl3.x86_64.rpm",
+			expectFound: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -558,6 +594,7 @@ func TestResolveMultiCandidates(t *testing.T) {
 		name         string
 		parentPkg    ospackage.PackageInfo
 		candidates   []ospackage.PackageInfo
+		userRepos    []config.PackageRepository
 		expectedName string
 		expectError  bool
 	}{
@@ -617,10 +654,53 @@ func TestResolveMultiCandidates(t *testing.T) {
 			expectedName: "testpkg-2.0-1.rpm", // Should pick the one that satisfies constraint
 			expectError:  false,
 		},
+		{
+			name: "Higher repo priority overrides parent base",
+			parentPkg: ospackage.PackageInfo{
+				URL: "https://example.com/repo1/parent.rpm",
+			},
+			candidates: []ospackage.PackageInfo{
+				{Name: "candidate1", Version: "1.0", URL: "https://example.com/repo1/candidate1.rpm"},
+				{Name: "candidate2", Version: "2.0", URL: "https://example.com/repo2/candidate2.rpm"},
+			},
+			userRepos: []config.PackageRepository{
+				{URL: "https://example.com/repo1", Priority: 500},
+				{URL: "https://example.com/repo2", Priority: 900},
+			},
+			expectedName: "candidate2",
+			expectError:  false,
+		},
+		{
+			name: "Default priority 500 keeps parent base preference",
+			parentPkg: ospackage.PackageInfo{
+				URL: "https://example.com/repo1/parent.rpm",
+			},
+			candidates: []ospackage.PackageInfo{
+				{Name: "candidate1", Version: "1.0", URL: "https://example.com/repo1/candidate1.rpm"},
+				{Name: "candidate2", Version: "2.0", URL: "https://example.com/repo2/candidate2.rpm"},
+			},
+			userRepos: []config.PackageRepository{
+				{URL: "https://example.com/repo1"},
+				{URL: "https://example.com/repo2"},
+			},
+			expectedName: "candidate1",
+			expectError:  false,
+		},
 	}
+
+	origUserRepo := UserRepo
+	defer func() {
+		UserRepo = origUserRepo
+	}()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.userRepos != nil {
+				UserRepo = tt.userRepos
+			} else {
+				UserRepo = nil
+			}
+
 			result, err := resolveMultiCandidates(tt.parentPkg, tt.candidates)
 			if tt.expectError {
 				if err == nil {
