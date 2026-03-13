@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -42,7 +43,7 @@ func Packages() ([]ospackage.PackageInfo, error) {
 	log := logger.Logger()
 	log.Infof("fetching packages from %s", RepoCfg.URL)
 
-	packages, err := ParseRepositoryMetadata(RepoCfg.URL, GzHref)
+	packages, err := ParseRepositoryMetadata(RepoCfg.URL, GzHref, nil)
 	if err != nil {
 		log.Errorf("parsing primary.xml.gz failed: %v", err)
 		return nil, err
@@ -57,40 +58,52 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 	log.Infof("fetching packages from %s", "user package list")
 
 	repoList := make([]struct {
-		id       string
-		codename string
-		url      string
-		pkey     string
+		id            string
+		codename      string
+		url           string
+		pkey          string
+		allowPackages []string
 	}, len(UserRepo))
 	for i, repo := range UserRepo {
 		repoList[i] = struct {
-			id       string
-			codename string
-			url      string
-			pkey     string
+			id            string
+			codename      string
+			url           string
+			pkey          string
+			allowPackages []string
 		}{
-			id:       fmt.Sprintf("rpmcustrepo%d", i+1),
-			codename: repo.Codename,
-			url:      repo.URL,
-			pkey:     repo.PKey,
+			id:            fmt.Sprintf("rpmcustrepo%d", i+1),
+			codename:      repo.Codename,
+			url:           repo.URL,
+			pkey:          repo.PKey,
+			allowPackages: repo.AllowPackages,
 		}
 	}
 
-	var userRepo []RepoConfig
+	type RepoConfigWithPackages struct {
+		RepoConfig
+		AllowPackages []string
+	}
+
+	var userRepo []RepoConfigWithPackages
 	for _, repoItem := range repoList {
 		id := repoItem.id
 		codename := repoItem.codename
 		baseURL := repoItem.url
 		pkey := repoItem.pkey
+		allowPackages := repoItem.allowPackages
 
-		repo := RepoConfig{
-			Name:         id,
-			GPGCheck:     true,
-			RepoGPGCheck: true,
-			Enabled:      true,
-			GPGKey:       pkey,
-			URL:          baseURL,
-			Section:      fmt.Sprintf("[%s]", codename),
+		repo := RepoConfigWithPackages{
+			RepoConfig: RepoConfig{
+				Name:         id,
+				GPGCheck:     true,
+				RepoGPGCheck: true,
+				Enabled:      true,
+				GPGKey:       pkey,
+				URL:          baseURL,
+				Section:      fmt.Sprintf("[%s]", codename),
+			},
+			AllowPackages: allowPackages,
 		}
 
 		userRepo = append(userRepo, repo)
@@ -111,7 +124,7 @@ func UserPackages() ([]ospackage.PackageInfo, error) {
 			return nil, fmt.Errorf("fetching %s URL failed: %w", repoMetaDataURL, err)
 		}
 
-		userPkgs, err := ParseRepositoryMetadata(rpItx.URL, primaryXmlURL)
+		userPkgs, err := ParseRepositoryMetadata(rpItx.URL, primaryXmlURL, rpItx.AllowPackages)
 		if err != nil {
 			return nil, fmt.Errorf("parsing user repo failed: %w", err)
 		}
@@ -254,7 +267,7 @@ func createTempGPGKeyFiles(gpgKeyURLs []string) (keyPaths []string, cleanup func
 		log.Infof("fetched GPG key %d (%d bytes) from %s", i+1, len(keyBytes), gpgKeyURL)
 
 		// Create temp file with unique pattern
-		tmp, err := os.CreateTemp("", fmt.Sprintf("azurelinux-gpg-%d-*.asc", i))
+		tmp, err := os.CreateTemp("", fmt.Sprintf("rpm-gpg-%d-*.asc", i))
 		if err != nil {
 			// Cleanup any files created so far
 			for _, f := range tempFiles {
@@ -369,13 +382,13 @@ func Resolve(req []ospackage.PackageInfo, all []ospackage.PackageInfo) ([]ospack
 }
 
 // DownloadPackages downloads packages and returns the list of downloaded package names.
-func DownloadPackages(pkgList []string, destDir, dotFile string) ([]string, error) {
-	downloadedPkgs, _, err := DownloadPackagesComplete(pkgList, destDir, dotFile)
+func DownloadPackages(pkgList []string, destDir, dotFile string, pkgSources map[string]config.PackageSource, systemRootsOnly bool) ([]string, error) {
+	downloadedPkgs, _, err := DownloadPackagesComplete(pkgList, destDir, dotFile, pkgSources, systemRootsOnly)
 	return downloadedPkgs, err
 }
 
 // DownloadPackagesComplete downloads packages and returns both package names and full package info.
-func DownloadPackagesComplete(pkgList []string, destDir, dotFile string) ([]string, []ospackage.PackageInfo, error) {
+func DownloadPackagesComplete(pkgList []string, destDir, dotFile string, pkgSources map[string]config.PackageSource, systemRootsOnly bool) ([]string, []ospackage.PackageInfo, error) {
 	var downloadPkgList []string
 
 	log := logger.Logger()
@@ -393,6 +406,16 @@ func DownloadPackagesComplete(pkgList []string, destDir, dotFile string) ([]stri
 		return downloadPkgList, nil, fmt.Errorf("user package fetch failed: %w", err)
 	}
 	all = append(all, userpkg...)
+
+	// Adjust package names to remove any prefixes before PkgName - Azure Linux RPM repos often prefix package file names
+	for i := range all {
+		// Find where the package name starts in the full name
+		if idx := strings.Index(all[i].Name, all[i].PkgName); idx > 0 {
+			// Remove the prefix by taking substring from where PkgName starts
+			all[i].Name = all[i].Name[idx:]
+		}
+		// If PkgName is not found or is at the beginning, keep the original Name
+	}
 
 	// Match the packages in the template against all the packages
 	req, err := MatchRequested(pkgList, all)
@@ -428,7 +451,7 @@ func DownloadPackagesComplete(pkgList []string, destDir, dotFile string) ([]stri
 	urls := make([]string, len(sorted_pkgs))
 	for i, pkg := range sorted_pkgs {
 		urls[i] = pkg.URL
-		downloadPkgList = append(downloadPkgList, pkg.Name)
+		downloadPkgList = append(downloadPkgList, path.Base(pkg.URL))
 	}
 
 	// Ensure dest directory exists

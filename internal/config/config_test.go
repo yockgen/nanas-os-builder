@@ -1419,7 +1419,7 @@ repositories:
     gpgKey: http://example.com/key
     enabled: true
 `
-	repoConfigFile := filepath.Join(providerConfigDir, "repo.yml")
+	repoConfigFile := filepath.Join(providerConfigDir, "amd64_repo.yml")
 	if err := os.WriteFile(repoConfigFile, []byte(repoConfigContent), 0644); err != nil {
 		t.Fatalf("Failed to write repo config file: %v", err)
 	}

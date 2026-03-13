@@ -75,6 +75,11 @@ func (p *eLxr) Init(dist, arch string) error {
 }
 
 func (p *eLxr) PreProcess(template *config.ImageTemplate) error {
+	// Generate apt sources file from packageRepositories
+	if err := template.GenerateAptSourcesFromRepositories(); err != nil {
+		return fmt.Errorf("failed to generate apt sources from repositories: %w", err)
+	}
+
 	if err := p.installHostDependency(); err != nil {
 		return fmt.Errorf("failed to install host dependencies: %w", err)
 	}
@@ -302,6 +307,7 @@ func (p *eLxr) downloadImagePkgs(template *config.ImageTemplate) error {
 		return fmt.Errorf("failed to update system packages: %w", err)
 	}
 	pkgList := template.GetPackages()
+	pkgSources := template.GetPackageSourceMap()
 	providerId := p.Name(template.Target.Dist, template.Target.Arch)
 	globalCache, err := config.CacheDir()
 	if err != nil {
@@ -329,7 +335,7 @@ func (p *eLxr) downloadImagePkgs(template *config.ImageTemplate) error {
 		log.Infof("Repository %d: %s (%s)", i+1, cfg.Name, cfg.PkgList)
 	}
 
-	fullPkgList, fullPkgListBom, err := debutils.DownloadPackagesComplete(pkgList, pkgCacheDir, "")
+	fullPkgList, fullPkgListBom, err := debutils.DownloadPackagesComplete(pkgList, pkgCacheDir, "", pkgSources, false)
 	if err != nil {
 		return fmt.Errorf("failed to download packages: %w", err)
 	}
@@ -367,6 +373,7 @@ func loadRepoConfig(repoUrl string, arch string) ([]debutils.RepoConfig, error) 
 			URL:       baseURL,
 			PKey:      gpgKey,
 			Component: component,
+			Priority:  0, // Default priority
 		}
 	}
 
