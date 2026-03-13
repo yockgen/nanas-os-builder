@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gdamore/tcell"
 	"github.com/open-edge-platform/os-image-composer/cmd/live-installer/texture-ui/views/confirmview"
 	"github.com/open-edge-platform/os-image-composer/cmd/live-installer/texture-ui/views/diskview"
 	"github.com/open-edge-platform/os-image-composer/cmd/live-installer/texture-ui/views/finishview"
@@ -14,6 +15,9 @@ import (
 	"github.com/open-edge-platform/os-image-composer/cmd/live-installer/texture-ui/views/installerview"
 	"github.com/open-edge-platform/os-image-composer/cmd/live-installer/texture-ui/views/progressview"
 	"github.com/open-edge-platform/os-image-composer/cmd/live-installer/texture-ui/views/userview"
+	"github.com/open-edge-platform/os-image-composer/internal/config"
+	"github.com/open-edge-platform/os-image-composer/internal/utils/shell"
+	"github.com/rivo/tview"
 )
 
 const LsblkOutput = `{
@@ -118,90 +122,90 @@ func TestViewImplementations(t *testing.T) {
 }
 
 // TestViewInterfaceMethodSignatures verifies the method signatures of the View interface
-// func TestViewInterfaceMethodSignatures(t *testing.T) {
-// 	// Create a mock template for testing
-// 	template := &config.ImageTemplate{
-// 		Target: config.TargetInfo{
-// 			OS:   "azure-linux",
-// 			Dist: "3.0",
-// 			Arch: "x86_64",
-// 		},
-// 		SystemConfig: config.SystemConfig{
-// 			Bootloader: config.Bootloader{
-// 				BootType: "efi",
-// 			},
-// 		},
-// 	}
+func TestViewInterfaceMethodSignatures(t *testing.T) {
+	// Create a mock template for testing
+	template := &config.ImageTemplate{
+		Target: config.TargetInfo{
+			OS:   "azure-linux",
+			Dist: "3.0",
+			Arch: "x86_64",
+		},
+		SystemConfig: config.SystemConfig{
+			Bootloader: config.Bootloader{
+				BootType: "efi",
+			},
+		},
+	}
 
-// 	originalExecutor := shell.Default
-// 	defer func() { shell.Default = originalExecutor }()
-// 	mockExpectedOutput := []shell.MockCommand{
-// 		{Pattern: "lsblk", Output: LsblkOutput, Error: nil},
-// 	}
-// 	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
+	originalExecutor := shell.Default
+	defer func() { shell.Default = originalExecutor }()
+	mockExpectedOutput := []shell.MockCommand{
+		{Pattern: "lsblk", Output: LsblkOutput, Error: nil},
+	}
+	shell.Default = shell.NewMockExecutor(mockExpectedOutput)
 
-// 	app := tview.NewApplication()
+	app := tview.NewApplication()
 
-// 	// Mock functions
-// 	mockFunc := func() {}
-// 	mockInstallationTime := func() time.Duration {
-// 		return time.Second
-// 	}
-// 	mockPerformInstallation := func(progress chan int, status chan string) {
-// 		close(progress)
-// 		close(status)
-// 	}
+	// Mock functions
+	mockFunc := func() {}
+	mockInstallationTime := func() time.Duration {
+		return time.Second
+	}
+	mockPerformInstallation := func(progress chan int, status chan string) {
+		close(progress)
+		close(status)
+	}
 
-// 	views := []struct {
-// 		name string
-// 		view View
-// 	}{
-// 		{"ConfirmView", confirmview.New()},
-// 		{"FinishView", finishview.New(mockInstallationTime)},
-// 		{"HostnameView", hostnameview.New()},
-// 		{"InstallerView", installerview.New()},
-// 		{"ProgressView", progressview.New(mockPerformInstallation)},
-// 		{"UserView", userview.New()},
-// 		{"DiskView", diskview.New()},
-// 	}
+	views := []struct {
+		name string
+		view View
+	}{
+		{"ConfirmView", confirmview.New()},
+		{"FinishView", finishview.New(mockInstallationTime)},
+		{"HostnameView", hostnameview.New()},
+		{"InstallerView", installerview.New()},
+		{"ProgressView", progressview.New(mockPerformInstallation)},
+		{"UserView", userview.New()},
+		{"DiskView", diskview.New()},
+	}
 
-// 	for _, v := range views {
-// 		t.Run(v.name, func(t *testing.T) {
-// 			// Test Initialize method signature
-// 			err := v.view.Initialize("Back", template, app, mockFunc, mockFunc, mockFunc, mockFunc)
-// 			// We don't check the error here since some views may require specific setup
-// 			_ = err
+	for _, v := range views {
+		t.Run(v.name, func(t *testing.T) {
+			// Test Initialize method signature
+			err := v.view.Initialize("Back", template, app, mockFunc, mockFunc, mockFunc, mockFunc)
+			// We don't check the error here since some views may require specific setup
+			_ = err
 
-// 			// Test HandleInput method signature
-// 			event := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
-// 			result := v.view.HandleInput(event)
-// 			_ = result
+			// Test HandleInput method signature
+			event := tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone)
+			result := v.view.HandleInput(event)
+			_ = result
 
-// 			// Test Reset method signature
-// 			err = v.view.Reset()
-// 			_ = err
+			// Test Reset method signature
+			err = v.view.Reset()
+			_ = err
 
-// 			// Test OnShow method signature (should not panic)
-// 			v.view.OnShow()
+			// Test OnShow method signature (should not panic)
+			v.view.OnShow()
 
-// 			// Test Name method signature
-// 			name := v.view.Name()
-// 			if name == "" {
-// 				t.Errorf("%s.Name() should return non-empty string", v.name)
-// 			}
+			// Test Name method signature
+			name := v.view.Name()
+			if name == "" {
+				t.Errorf("%s.Name() should return non-empty string", v.name)
+			}
 
-// 			// Test Title method signature
-// 			title := v.view.Title()
-// 			if title == "" {
-// 				t.Errorf("%s.Title() should return non-empty string", v.name)
-// 			}
+			// Test Title method signature
+			title := v.view.Title()
+			if title == "" {
+				t.Errorf("%s.Title() should return non-empty string", v.name)
+			}
 
-// 			// Test Primitive method signature
-// 			primitive := v.view.Primitive()
-// 			_ = primitive // May be nil before proper initialization
-// 		})
-// 	}
-// }
+			// Test Primitive method signature
+			primitive := v.view.Primitive()
+			_ = primitive // May be nil before proper initialization
+		})
+	}
+}
 
 // TestViewHandleInput verifies that HandleInput methods handle nil events gracefully
 func TestViewHandleInput(t *testing.T) {
