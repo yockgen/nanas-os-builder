@@ -30,23 +30,23 @@ const LsblkOutput = `{
 `
 
 // TestViewInterface verifies that the View interface is properly defined
-// func TestViewInterface(t *testing.T) {
-// 	// This test ensures the View interface compiles correctly
-// 	// Actual implementations will be tested in their respective packages
+func TestViewInterface(t *testing.T) {
+	// This test ensures the View interface compiles correctly
+	// Actual implementations will be tested in their respective packages
 
-// 	var _ View // Interface exists and can be declared
+	var _ View // Interface exists and can be declared
 
-// 	// The View interface should have all required methods
-// 	// - Initialize
-// 	// - HandleInput
-// 	// - Reset
-// 	// - OnShow
-// 	// - Name
-// 	// - Title
-// 	// - Primitive
+	// The View interface should have all required methods
+	// - Initialize
+	// - HandleInput
+	// - Reset
+	// - OnShow
+	// - Name
+	// - Title
+	// - Primitive
 
-// 	// This test mainly serves as a compilation check
-// }
+	// This test mainly serves as a compilation check
+}
 
 // TestViewInterfaceDocumentation tests that the interface is properly documented
 func TestViewInterfaceDocumentation(t *testing.T) {
