@@ -174,7 +174,7 @@ func FetchPackages(urls []string, destDir string, workers int) error {
 					// file exists but zero size: re-download
 					log.Warnf("re-downloading zero-size %s", name)
 				}
-					client := network.GetSecureHTTPClient()
+				client := network.GetSecureHTTPClient()
 				err := downloadWithRetry(client, url, destPath, i)
 
 				if err != nil {

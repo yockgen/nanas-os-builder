@@ -281,8 +281,8 @@ func extractEchoStringManual(command string) (string, error) {
 	rest = strings.TrimSpace(rest)
 
 	if len(rest) == 0 {
-	return "", fmt.Errorf("no quoted string found in echo command")
-}
+		return "", fmt.Errorf("no quoted string found in echo command")
+	}
 
 	// Check if it starts with a quote
 	if rest[0] != '\'' && rest[0] != '"' {
