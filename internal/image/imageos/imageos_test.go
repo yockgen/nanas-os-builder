@@ -52,6 +52,7 @@ type MockChrootEnv struct {
 	chrootPath          string
 	chrootRoot          string
 	pkgType             string
+	targetOsConfigDir   string
 }
 
 func (m *MockChrootEnv) GetChrootImageBuildDir() string {
@@ -94,7 +95,12 @@ func (m *MockChrootEnv) GetTargetOsPkgType() string {
 }
 
 // Implement all required interface methods as stubs
-func (m *MockChrootEnv) GetTargetOsConfigDir() string              { return "/tmp/config" }
+func (m *MockChrootEnv) GetTargetOsConfigDir() string {
+	if m.targetOsConfigDir != "" {
+		return m.targetOsConfigDir
+	}
+	return "/tmp/config"
+}
 func (m *MockChrootEnv) GetTargetOsReleaseVersion() string         { return "1.0" }
 func (m *MockChrootEnv) GetChrootPkgCacheDir() string              { return "/tmp/cache" }
 func (m *MockChrootEnv) MountChrootSysfs(chrootPath string) error  { return nil }
@@ -1722,9 +1728,6 @@ func TestInstallImagePkgs(t *testing.T) {
 	originalExecutor := shell.Default
 	defer func() { shell.Default = originalExecutor }()
 
-	mockExecutor := &shell.MockExecutor{}
-	shell.Default = mockExecutor
-
 	// Create test directory
 	testDir, err := os.MkdirTemp("", "imageos_pkgs_test_*")
 	if err != nil {
@@ -1743,23 +1746,30 @@ func TestInstallImagePkgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create chroot directory if needed for RPM test
-			chrootRoot := "/tmp/chroot"
-			if tt.pkgType == "rpm" {
-				if err := os.MkdirAll(chrootRoot, 0755); err != nil {
-					t.Fatalf("Failed to create chroot directory: %v", err)
-				}
-				defer os.RemoveAll(chrootRoot)
+			chrootRoot := filepath.Join(testDir, tt.pkgType+"-chroot-root")
+			if err := os.MkdirAll(chrootRoot, 0755); err != nil {
+				t.Fatalf("Failed to create chroot directory: %v", err)
 			}
 
-			// Create config directory for DEB test
-			configDir := "/tmp/config/chrootenvconfigs"
-			if tt.pkgType == "deb" {
-				if err := os.MkdirAll(configDir, 0755); err != nil {
-					t.Fatalf("Failed to create config directory: %v", err)
-				}
-				defer os.RemoveAll("/tmp/config")
+			configRoot := filepath.Join(testDir, tt.pkgType+"-config")
+			if err := os.MkdirAll(filepath.Join(configRoot, "chrootenvconfigs"), 0755); err != nil {
+				t.Fatalf("Failed to create config directory: %v", err)
 			}
+
+			mockCommands := []shell.MockCommand{}
+			if tt.pkgType == "rpm" {
+				mockCommands = append(mockCommands,
+					shell.MockCommand{Pattern: `sudo mkdir -p .*var/lib/rpm`, Output: "", Error: nil},
+					shell.MockCommand{Pattern: `sudo chroot .* rpm --root .* --initdb`, Output: "", Error: fmt.Errorf("rpm initdb failed")},
+				)
+			}
+			if tt.pkgType == "deb" {
+				mockCommands = append(mockCommands,
+					shell.MockCommand{Pattern: `sudo rm -f .*sources\.list\.d/\*`, Output: "", Error: nil},
+				)
+			}
+
+			shell.Default = shell.NewMockExecutor(mockCommands)
 
 			// Create mock chroot environment
 			mockChrootEnv := &MockChrootEnv{
@@ -1767,6 +1777,7 @@ func TestInstallImagePkgs(t *testing.T) {
 				pkgType:             tt.pkgType,
 				chrootPath:          "/chroot/test",
 				chrootRoot:          chrootRoot,
+				targetOsConfigDir:   configRoot,
 			}
 
 			template := createTestImageTemplate()

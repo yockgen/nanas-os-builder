@@ -42,11 +42,13 @@ type DiskConfig struct {
 }
 
 type PackageRepository struct {
-	ID        string `yaml:"id,omitempty"`        // Auto-assigned
-	Codename  string `yaml:"codename"`            // Repository identifier/codename
-	URL       string `yaml:"url"`                 // Repository base URL
-	PKey      string `yaml:"pkey"`                // Public GPG key URL for verification
-	Component string `yaml:"component,omitempty"` // Repository component (e.g., "main", "restricted")
+	ID            string   `yaml:"id,omitempty"`            // Auto-assigned
+	Codename      string   `yaml:"codename"`                // Repository identifier/codename
+	URL           string   `yaml:"url"`                     // Repository base URL
+	PKey          string   `yaml:"pkey"`                    // Public GPG key URL for verification
+	Component     string   `yaml:"component,omitempty"`     // Repository component (e.g., "main", "restricted")
+	Priority      int      `yaml:"priority,omitempty"`      // Repository priority (higher numbers = higher priority)
+	AllowPackages []string `yaml:"allowPackages,omitempty"` // Optional: specific packages to include from this repo (pinning)
 }
 
 // ProviderRepoConfig represents the repository configuration for a provider
@@ -87,6 +89,17 @@ type ImageTemplate struct {
 	FullPkgList       []string                `yaml:"-"`
 	FullPkgListBom    []ospackage.PackageInfo `yaml:"-"`
 }
+
+// PackageSource identifies why a package was requested in the merged template.
+type PackageSource string
+
+const (
+	PackageSourceUnknown    PackageSource = "unknown"
+	PackageSourceEssential  PackageSource = "essential"
+	PackageSourceKernel     PackageSource = "kernel"
+	PackageSourceSystem     PackageSource = "system"
+	PackageSourceBootloader PackageSource = "bootloader"
+)
 
 type Initramfs struct {
 	Template string `yaml:"template"` // Template: path to the initramfs configuration template file
@@ -303,8 +316,8 @@ func (t *ImageTemplate) GetInitramfsTemplate() (string, error) {
 	}
 	if filepath.IsAbs(t.SystemConfig.Initramfs.Template) {
 		initrdTemplateFilePath = t.SystemConfig.Initramfs.Template
-		if _, err := os.Stat(initrdTemplateFilePath); os.IsNotExist(err) {
-			return "", fmt.Errorf("initrd template file does not exist: %s", initrdTemplateFilePath)
+		if _, err := os.Stat(initrdTemplateFilePath); err != nil {
+			return "", fmt.Errorf("initrd template file does not exist or is not accessible: %s", initrdTemplateFilePath)
 		}
 	} else {
 		if len(t.PathList) == 0 {
@@ -339,6 +352,37 @@ func (t *ImageTemplate) GetPackages() []string {
 	allPkgList = append(allPkgList, t.SystemConfig.Packages...)
 	allPkgList = append(allPkgList, t.BootloaderPkgList...)
 	return allPkgList
+}
+
+var packageSourcePriority = map[PackageSource]int{
+	PackageSourceUnknown:    0,
+	PackageSourceSystem:     10,
+	PackageSourceKernel:     20,
+	PackageSourceBootloader: 20,
+	PackageSourceEssential:  30,
+}
+
+// GetPackageSourceMap returns a map of package name to the template section that requested it.
+func (t *ImageTemplate) GetPackageSourceMap() map[string]PackageSource {
+	sources := make(map[string]PackageSource)
+	setSources := func(pkgs []string, source PackageSource) {
+		for _, pkg := range pkgs {
+			pkg = strings.TrimSpace(pkg)
+			if pkg == "" {
+				continue
+			}
+			if current, ok := sources[pkg]; !ok || packageSourcePriority[source] >= packageSourcePriority[current] {
+				sources[pkg] = source
+			}
+		}
+	}
+
+	setSources(t.SystemConfig.Packages, PackageSourceSystem)
+	setSources(t.KernelPkgList, PackageSourceKernel)
+	setSources(t.BootloaderPkgList, PackageSourceBootloader)
+	setSources(t.EssentialPkgList, PackageSourceEssential)
+
+	return sources
 }
 
 func (t *ImageTemplate) GetAdditionalFileInfo() []AdditionalFileInfo {

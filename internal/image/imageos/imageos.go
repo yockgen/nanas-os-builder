@@ -323,6 +323,15 @@ func mountDiskRootToChroot(installRoot string, diskPathIdMap map[string]string, 
 	return fmt.Errorf("no root partition found in diskPathIdMap")
 }
 
+func isSwapFsType(fsType string) bool {
+	return fsType == "swap" || fsType == "linux-swap"
+}
+
+func isNonMountablePartition(partition config.PartitionInfo) bool {
+	mountPoint := strings.TrimSpace(partition.MountPoint)
+	return mountPoint == "" || mountPoint == "none" || isSwapFsType(partition.FsType)
+}
+
 func (imageOs *ImageOs) mountDiskToChroot(installRoot string, diskPathIdMap map[string]string, template *config.ImageTemplate) ([]map[string]string, error) {
 	var mountPointInfoList []map[string]string
 	diskInfo := template.GetDiskConfig()
@@ -330,6 +339,12 @@ func (imageOs *ImageOs) mountDiskToChroot(installRoot string, diskPathIdMap map[
 	for diskId, diskPath := range diskPathIdMap {
 		for _, partition := range partions {
 			if partition.ID == diskId {
+				if isNonMountablePartition(partition) {
+					log.Debugf("Skipping non-mountable partition %s (fsType=%s, mountPoint=%q)",
+						partition.ID, partition.FsType, partition.MountPoint)
+					continue
+				}
+
 				mountPointInfo := make(map[string]string)
 				mountPointInfo["Id"] = diskId
 				mountPointInfo["Path"] = diskPath
@@ -561,6 +576,14 @@ func (imageOs *ImageOs) installImagePkgs(installRoot string, template *config.Im
 		// Force to use the local cache repository
 		var repoSrcList []string = []string{"/etc/apt/sources.list.d/local.list"}
 		var efiVariableAccessPkg = []string{"systemd-boot", "dracut-core"}
+
+		var initramfsBinaries = []string{"/usr/bin/dracut", "/usr/sbin/mkinitramfs", "/usr/sbin/update-initramfs"}
+		backupPaths, divertedPaths := prepareInitramfsBinariesForDebInstall(installRoot, initramfsBinaries)
+
+		defer func() {
+			restoreInitramfsBinariesAfterDebInstall(installRoot, backupPaths, divertedPaths)
+		}()
+
 		for i, pkg := range imagePkgOrderedList {
 			log.Infof("Installing package %d/%d: %s", i+1, imagePkgNum, pkg)
 			if slice.Contains(efiVariableAccessPkg, pkg) {
@@ -582,11 +605,15 @@ func (imageOs *ImageOs) installImagePkgs(installRoot string, template *config.Im
 				}
 
 				output, err := shell.ExecCmdWithStream(installCmd, true, installRoot, envVars)
+				// Always log the full output for debugging
+				log.Infof("apt-get install output for %s:\n%s", pkg, output)
 				if err != nil {
-					if strings.Contains(output, "Failed to write 'LoaderSystemToken' EFI variable") {
-						log.Debugf("Expected error: The EFI variable shouldn't be accessed in chroot.")
+					if strings.Contains(output, "Failed to write 'LoaderSystemToken' EFI variable") ||
+						strings.Contains(output, "Failed to create EFI Boot variable entry") {
+						log.Debugf("Expected error: EFI variables cannot be accessed in chroot environment.")
 					} else {
 						log.Errorf("Failed to install package %s: %v", pkg, err)
+						log.Errorf("Full apt-get output:\n%s", output)
 						return fmt.Errorf("failed to install package %s: %w", pkg, err)
 					}
 				}
@@ -594,15 +621,138 @@ func (imageOs *ImageOs) installImagePkgs(installRoot string, template *config.Im
 				if err := imageOs.chrootEnv.AptInstallPackage(pkg, installRoot, repoSrcList); err != nil {
 					return fmt.Errorf("failed to install package %s: %w", pkg, err)
 				}
+
+				// After apparmor is installed, create a wrapper to prevent postinst failures in chroot
+				pkgNameOnly := strings.Split(pkg, "_")[0]
+				if pkgNameOnly == "apparmor" {
+					// Create a wrapper script for apparmor_parser that always succeeds
+					apparmorOrigPath := filepath.Join(installRoot, "usr/sbin/apparmor_parser")
+					apparmorRealPath := filepath.Join(installRoot, "usr/sbin/apparmor_parser.real")
+
+					// Check if apparmor_parser exists
+					if _, err := os.Stat(apparmorOrigPath); err == nil {
+						// Rename the real apparmor_parser
+						if err := os.Rename(apparmorOrigPath, apparmorRealPath); err != nil {
+							log.Warnf("Failed to rename apparmor_parser: %v", err)
+						} else {
+							// Create a wrapper that calls the real parser but always returns success
+							wrapperScript := `#!/bin/bash
+# Wrapper for apparmor_parser in chroot environment
+# Calls the real parser but ignores errors since AppArmor kernel interface is not available
+/usr/sbin/apparmor_parser.real "$@" 2>&1 | grep -v "Cache read/write disabled" | grep -v "Kernel needs AppArmor" | grep -v "interface file missing" || true
+exit 0
+`
+							if err := os.WriteFile(apparmorOrigPath, []byte(wrapperScript), 0755); err != nil {
+								log.Warnf("Failed to create apparmor_parser wrapper: %v", err)
+							} else {
+								log.Debugf("Created apparmor_parser wrapper at %s", apparmorOrigPath)
+							}
+						}
+					} else {
+						log.Warnf("apparmor_parser not found at %s", apparmorOrigPath)
+					}
+				}
 			}
+
 		}
 		if err := imageOs.deInitDebLocalRepoWithinInstallRoot(installRoot); err != nil {
 			return fmt.Errorf("failed to de-initialize local repository within install root: %w", err)
+		}
+
+		// Restore original apparmor_parser after all packages are installed
+		apparmorRealPath := filepath.Join(installRoot, "usr/sbin/apparmor_parser.real")
+		if _, statErr := os.Stat(apparmorRealPath); statErr == nil {
+			apparmorOrigPath := filepath.Join(installRoot, "usr/sbin/apparmor_parser")
+			// Remove the wrapper
+			if err := os.Remove(apparmorOrigPath); err != nil {
+				log.Warnf("Failed to remove apparmor_parser wrapper: %v", err)
+			}
+			// Restore the original
+			if err := os.Rename(apparmorRealPath, apparmorOrigPath); err != nil {
+				log.Warnf("Failed to restore original apparmor_parser: %v", err)
+			} else {
+				log.Debugf("Restored original apparmor_parser after package installation")
+			}
 		}
 	} else {
 		return fmt.Errorf("unsupported package type: %s", pkgType)
 	}
 	return nil
+}
+
+func prepareInitramfsBinariesForDebInstall(installRoot string, initramfsBinaries []string) (map[string]string, map[string]string) {
+	backupPaths := make(map[string]string)
+	divertedPaths := make(map[string]string)
+	dummyContent := "#!/bin/sh\necho \"Initramfs generation temporarily disabled during package installation\"\nexit 0\n"
+
+	for _, binary := range initramfsBinaries {
+		binaryPath := filepath.Join(installRoot, binary)
+		divertPath := binary + ".oic-diverted"
+
+		divertCmd := fmt.Sprintf("dpkg-divert --local --divert %s --add %s", divertPath, binary)
+		if _, err := shell.ExecCmd(divertCmd, true, installRoot, nil); err == nil {
+			if err := file.Write(dummyContent, binaryPath); err != nil {
+				log.Warnf("Failed to write dummy binary %s: %v", binary, err)
+				removeCmd := fmt.Sprintf("dpkg-divert --rename --divert %s --remove %s", divertPath, binary)
+				if _, removeErr := shell.ExecCmd(removeCmd, true, installRoot, nil); removeErr != nil {
+					log.Debugf("Failed to remove diversion for %s: %v", binary, removeErr)
+				}
+				continue
+			}
+			if _, err := shell.ExecCmd("chmod +x "+binaryPath, true, shell.HostPath, nil); err != nil {
+				log.Debugf("Failed to chmod +x %s: %v", binaryPath, err)
+			}
+			divertedPaths[binary] = divertPath
+			log.Debugf("Temporarily replaced %s with dummy binary", binary)
+			continue
+		}
+
+		log.Debugf("Failed to add diversion for %s, falling back to direct replacement if present", binary)
+
+		if _, err := os.Stat(binaryPath); err == nil {
+			backupPath := binaryPath + ".backup"
+			if err := file.CopyFile(binaryPath, backupPath, "", false); err != nil {
+				log.Debugf("Failed to backup %s before replacement: %v", binaryPath, err)
+				continue
+			}
+			backupPaths[binaryPath] = backupPath
+			if err := file.Write(dummyContent, binaryPath); err != nil {
+				log.Debugf("Failed to replace %s with dummy binary: %v", binaryPath, err)
+				continue
+			}
+			if _, err := shell.ExecCmd("chmod +x "+binaryPath, true, shell.HostPath, nil); err != nil {
+				log.Debugf("Failed to chmod +x %s: %v", binaryPath, err)
+			}
+			log.Debugf("Temporarily replaced %s with dummy binary", binary)
+		}
+	}
+
+	return backupPaths, divertedPaths
+}
+
+func restoreInitramfsBinariesAfterDebInstall(installRoot string, backupPaths map[string]string, divertedPaths map[string]string) {
+	for originalPath, backupPath := range backupPaths {
+		if _, err := os.Stat(backupPath); err == nil {
+			if err := file.CopyFile(backupPath, originalPath, "", false); err == nil {
+				if _, err := shell.ExecCmd("rm -f "+backupPath, true, shell.HostPath, nil); err != nil {
+					log.Debugf("Failed to remove backup file %s: %v", backupPath, err)
+				}
+				log.Debugf("Restored original binary: %s", originalPath)
+			}
+		}
+	}
+
+	for binary, divertPath := range divertedPaths {
+		if _, err := shell.ExecCmd("rm -f "+binary, true, installRoot, nil); err != nil {
+			log.Debugf("Failed to remove dummy binary %s: %v", binary, err)
+		}
+		removeCmd := fmt.Sprintf("dpkg-divert --rename --divert %s --remove %s", divertPath, binary)
+		if _, err := shell.ExecCmd(removeCmd, true, installRoot, nil); err != nil {
+			log.Warnf("Failed to restore diverted binary %s: %v", binary, err)
+		} else {
+			log.Debugf("Restored diverted binary: %s", binary)
+		}
+	}
 }
 
 func updateInitrdConfig(installRoot string, template *config.ImageTemplate) error {
@@ -805,7 +955,6 @@ func updateImageFstab(installRoot string, diskPathIdMap map[string]string, templ
 	const (
 		rootfsMountPoint = "/"
 		defaultOptions   = "defaults"
-		swapFsType       = "swap"
 		swapOptions      = "sw"
 		defaultDump      = "0"
 		disablePass      = "0"
@@ -847,7 +996,12 @@ func updateImageFstab(installRoot string, diskPathIdMap map[string]string, templ
 					pass = rootPass
 				}
 
-				if fsType == swapFsType {
+				if isSwapFsType(fsType) {
+					fsType = "swap"
+					if strings.TrimSpace(mountPoint) == "" {
+						mountPoint = "none"
+					}
+
 					// For swap partitions, set the options accordingly
 					options = swapOptions
 					pass = disablePass // No pass value for swap
